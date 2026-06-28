@@ -28,3 +28,16 @@ export async function getDriveFileBuffer(fileId: string): Promise<Buffer> {
   )
   return Buffer.from(res.data as ArrayBuffer)
 }
+
+export async function getDriveFileWithName(fileId: string): Promise<{ buffer: Buffer; name: string }> {
+  const drive = getDrive()
+  const [meta, content] = await Promise.all([
+    drive.files.get({ fileId, fields: 'name' }),
+    drive.files.get({ fileId, alt: 'media' }, { responseType: 'arraybuffer' }),
+  ])
+  const rawName = (meta.data.name ?? 'photo').replace(/\.[^.]+$/, '')
+  return {
+    buffer: Buffer.from(content.data as ArrayBuffer),
+    name: `${rawName}.jpg`,
+  }
+}

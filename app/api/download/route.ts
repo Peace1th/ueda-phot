@@ -1,7 +1,7 @@
 import { NextRequest } from 'next/server'
 import { cookies } from 'next/headers'
 import { verifyToken } from '@/lib/auth'
-import { getDriveFileBuffer } from '@/lib/drive'
+import { getDriveFileWithName } from '@/lib/drive'
 import { supabaseAdmin } from '@/lib/supabase'
 import sharp from 'sharp'
 import JSZip from 'jszip'
@@ -32,7 +32,6 @@ export async function POST(req: NextRequest) {
     return new Response('Download not enabled', { status: 403 })
   }
 
-  // ログ保存
   await supabaseAdmin.from('download_logs').insert(
     fileIds.map((fileId: string) => ({
       album_slug: slug,
@@ -43,11 +42,14 @@ export async function POST(req: NextRequest) {
     }))
   )
 
-  async function processImage(fileId: string): Promise<Buffer> {
-    const buffer = await getDriveFileBuffer(fileId)
+  async function processFile(fileId: string): Promise<{ buf: Buffer; filename: string }> {
+    const { buffer, name: filename } = await getDriveFileWithName(fileId)
+
     if (!album!.dl_watermark_enabled || !album!.dl_watermark_text) {
-      return sharp(buffer).jpeg({ quality: 95 }).toBuffer()
+      const buf = await sharp(buffer).jpeg({ quality: 95 }).toBuffer()
+      return { buf, filename }
     }
+
     const metadata = await sharp(buffer).metadata()
     const imgW = metadata.width ?? 1000
     const fontSize = Math.max(18, Math.round(imgW * 0.022))
@@ -62,29 +64,31 @@ export async function POST(req: NextRequest) {
         font-family="Arial,Helvetica,sans-serif" font-size="${fontSize}" font-weight="700"
         fill="rgba(0,0,0,${opacity})">${text}</text>
     </svg>`
-    return sharp(buffer)
+
+    const buf = await sharp(buffer)
       .composite([{ input: Buffer.from(svg), gravity: (album!.dl_watermark_position ?? 'southwest') as sharp.Gravity }])
       .jpeg({ quality: 95 })
       .toBuffer()
+    return { buf, filename }
   }
 
-  // 1枚 → JPEG直接返却
+  // 1枚 → JPEG 直接返却
   if (fileIds.length === 1) {
-    const result = await processImage(fileIds[0])
-    return new Response(new Uint8Array(result), {
+    const { buf, filename } = await processFile(fileIds[0])
+    return new Response(new Uint8Array(buf), {
       headers: {
         'Content-Type': 'image/jpeg',
-        'Content-Disposition': 'attachment; filename="photo.jpg"',
+        'Content-Disposition': `attachment; filename="${encodeURIComponent(filename)}"`,
         'Cache-Control': 'no-store',
       },
     })
   }
 
-  // 複数枚 → ZIP
-  const buffers = await Promise.all(fileIds.map(processImage))
+  // 複数枚 → ZIP（元ファイル名をそのまま使用）
+  const files = await Promise.all(fileIds.map(processFile))
   const zip = new JSZip()
-  buffers.forEach((buf, i) => {
-    zip.file(`photo_${String(i + 1).padStart(2, '0')}.jpg`, buf)
+  files.forEach(({ buf, filename }) => {
+    zip.file(filename, buf)
   })
   const zipBuf = await zip.generateAsync({ type: 'nodebuffer', compression: 'DEFLATE' })
 
