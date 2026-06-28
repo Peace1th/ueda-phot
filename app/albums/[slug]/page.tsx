@@ -1,7 +1,5 @@
-import { cookies } from 'next/headers'
 import { notFound } from 'next/navigation'
 import { supabaseAdmin } from '@/lib/supabase'
-import { verifyToken } from '@/lib/auth'
 import PasswordForm from '@/components/PasswordForm'
 
 export const dynamic = 'force-dynamic'
@@ -23,14 +21,6 @@ export default async function AlbumPage({ params }: Props) {
     .single()
 
   if (!album) notFound()
-
-  // 認証済みなら直接ギャラリーへリダイレクト
-  const cookieStore = await cookies()
-  const token = cookieStore.get(`album_token_${slug}`)?.value
-  if (token && verifyToken(token, slug)) {
-    const { redirect } = await import('next/navigation')
-    redirect(`/albums/${slug}/gallery`)
-  }
 
   return (
     <main>
