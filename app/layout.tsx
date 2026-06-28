@@ -37,6 +37,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           borderTop: '1px solid var(--line)', marginTop: 64,
         }}>
           © 上田写真館. All rights reserved. — 無断転載・複製を禁じます。
+          <br />
+          <Link href="/admin" style={{ color: 'var(--line)', textDecoration: 'none', fontSize: 11, marginTop: 8, display: 'inline-block' }}>管理者</Link>
         </footer>
       </body>
     </html>
