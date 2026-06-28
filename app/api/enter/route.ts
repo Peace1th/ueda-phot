@@ -11,7 +11,8 @@ export async function POST(req: NextRequest) {
     return Response.json({ ok: false, msg: '入力内容が不正です' }, { status: 400 })
   }
 
-  const today = new Date().toISOString().slice(0, 10)
+  const jst = new Date(Date.now() + 9 * 60 * 60 * 1000)
+  const today = jst.toISOString().slice(0, 10)
   const { data: album } = await supabaseAdmin
     .from('albums')
     .select('slug, password_hash')
