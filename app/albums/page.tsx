@@ -4,7 +4,8 @@ import Link from 'next/link'
 export const dynamic = 'force-dynamic'
 
 export default async function AlbumsPage() {
-  const today = new Date().toISOString().slice(0, 10)
+  const jst = new Date(Date.now() + 9 * 60 * 60 * 1000)
+  const today = jst.toISOString().slice(0, 10)
 
   const { data: albums } = await supabaseAdmin
     .from('albums')
