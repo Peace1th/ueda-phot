@@ -15,9 +15,11 @@ function makeWatermarkBg(text: string): string {
 }
 
 export default function Gallery({ photos, watermarkText }: { photos: Photo[]; watermarkText: string }) {
-  const [current, setCurrent] = useState<number | null>(null)
-  const [lbSrc, setLbSrc]   = useState<string | null>(null)
+  const [current, setCurrent]     = useState<number | null>(null)
+  const [lbSrc, setLbSrc]         = useState<string | null>(null)
   const [lbLoading, setLbLoading] = useState(false)
+  const [hovered, setHovered]     = useState<number | null>(null)
+  const [mousePos, setMousePos]   = useState({ x: 0, y: 0 })
   const observerRef = useRef<IntersectionObserver | null>(null)
   const wmBg = makeWatermarkBg(watermarkText)
 
@@ -39,14 +41,14 @@ export default function Gallery({ photos, watermarkText }: { photos: Photo[]; wa
         observerRef.current?.unobserve(cell)
       })
     }, { rootMargin: '400px' })
-
     return () => observerRef.current?.disconnect()
   }, [])
 
   /* ライトボックス */
   async function openLightbox(i: number) {
+    setHovered(null)
     setCurrent(i)
-    setLbSrc(null)
+    setLbSrc(photos[i].thumbUrl) // サムネを即表示
     setLbLoading(true)
     const img = new Image()
     img.onload  = () => { setLbSrc(img.src); setLbLoading(false) }
@@ -63,9 +65,9 @@ export default function Gallery({ photos, watermarkText }: { photos: Photo[]; wa
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
       if (current === null) return
-      if (e.key === 'Escape')      setCurrent(null)
-      if (e.key === 'ArrowLeft')   move(-1)
-      if (e.key === 'ArrowRight')  move(1)
+      if (e.key === 'Escape')     setCurrent(null)
+      if (e.key === 'ArrowLeft')  move(-1)
+      if (e.key === 'ArrowRight') move(1)
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
@@ -80,10 +82,19 @@ export default function Gallery({ photos, watermarkText }: { photos: Photo[]; wa
     return () => { document.removeEventListener('contextmenu', block); document.removeEventListener('dragstart', block) }
   }, [])
 
+  /* ホバープレビューの位置計算 */
+  const previewW = 300
+  const previewH = 300
+  const margin   = 16
+  const px = mousePos.x + margin + previewW > window.innerWidth
+    ? mousePos.x - previewW - margin
+    : mousePos.x + margin
+  const py = Math.min(mousePos.y - previewH / 2, window.innerHeight - previewH - margin)
+
   return (
     <div className="protect">
       <p style={{ fontSize: 13, color: 'var(--sub)', marginBottom: 16 }}>
-        全 {photos.length} 枚 — タップ・クリックで拡大表示
+        全 {photos.length} 枚 — ホバーでプレビュー、クリックで拡大
       </p>
 
       {/* グリッド */}
@@ -94,10 +105,15 @@ export default function Gallery({ photos, watermarkText }: { photos: Photo[]; wa
             ref={observeCell}
             data-src={p.thumbUrl}
             onClick={() => openLightbox(i)}
+            onMouseEnter={e => { setHovered(i); setMousePos({ x: e.clientX, y: e.clientY }) }}
+            onMouseMove={e  => setMousePos({ x: e.clientX, y: e.clientY })}
+            onMouseLeave={() => setHovered(null)}
             style={{
               position: 'relative', aspectRatio: '1/1',
               borderRadius: 6, overflow: 'hidden',
               background: '#e8e4de', cursor: 'zoom-in',
+              outline: hovered === i ? '2px solid var(--accent)' : 'none',
+              transition: 'outline .1s',
             }}
           >
             {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -111,6 +127,33 @@ export default function Gallery({ photos, watermarkText }: { photos: Photo[]; wa
         ))}
       </div>
 
+      {/* ホバープレビュー */}
+      {hovered !== null && current === null && (
+        <div
+          style={{
+            position: 'fixed',
+            left: px,
+            top: Math.max(margin, py),
+            width: previewW,
+            height: previewH,
+            borderRadius: 10,
+            overflow: 'hidden',
+            boxShadow: '0 12px 40px rgba(0,0,0,.35)',
+            pointerEvents: 'none',
+            zIndex: 50,
+            background: '#e8e4de',
+          }}
+        >
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={photos[hovered].thumbUrl}
+            alt=""
+            style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+          />
+          <div className="watermark-overlay" style={{ backgroundImage: wmBg }} />
+        </div>
+      )}
+
       {/* ライトボックス */}
       {current !== null && (
         <div
@@ -122,26 +165,28 @@ export default function Gallery({ photos, watermarkText }: { photos: Photo[]; wa
             padding: 24,
           }}
         >
-          <button onClick={() => move(-1)} style={navBtn}>‹</button>
+          <button onClick={() => move(-1)} style={{ ...navBtn, left: 12 }}>‹</button>
 
           <div style={{ position: 'relative', maxWidth: '100%', maxHeight: '100%' }}>
             <button onClick={() => setCurrent(null)} style={closeBtn}>×</button>
-            {lbLoading && (
-              <div style={{ color: '#aaa', fontSize: 13, padding: 40 }}>読み込み中…</div>
-            )}
             {lbSrc && (
               <>
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                   src={lbSrc} alt=""
-                  style={{ maxWidth: '100%', maxHeight: '86vh', objectFit: 'contain', display: 'block', borderRadius: 4 }}
+                  style={{
+                    maxWidth: '100%', maxHeight: '86vh', objectFit: 'contain',
+                    display: 'block', borderRadius: 4,
+                    filter: lbLoading ? 'blur(8px)' : 'none',
+                    transition: 'filter .3s',
+                  }}
                 />
                 <div className="watermark-overlay" style={{ backgroundImage: wmBg, borderRadius: 4 }} />
               </>
             )}
           </div>
 
-          <button onClick={() => move(1)} style={navBtn}>›</button>
+          <button onClick={() => move(1)} style={{ ...navBtn, right: 12 }}>›</button>
         </div>
       )}
     </div>
