@@ -22,14 +22,29 @@ function makeWatermarkBg(text: string): string {
   return `url("data:image/svg+xml;charset=utf8,${encodeURIComponent(svg)}")`
 }
 
+const MAX_SELECT = 10
+
 export default function Gallery({ photos, watermarkText, slug, downloadEnabled }: Props) {
   const [current, setCurrent]     = useState<number | null>(null)
   const [lbSrc, setLbSrc]         = useState<string | null>(null)
   const [lbLoading, setLbLoading] = useState(false)
   const [hovered, setHovered]     = useState<number | null>(null)
   const [mousePos, setMousePos]   = useState({ x: 0, y: 0 })
-  const [dlTarget, setDlTarget]   = useState<number | null>(null)
+  const [selected, setSelected]   = useState<Set<number>>(new Set())
+  const [dlFileIds, setDlFileIds] = useState<string[] | null>(null)
   const wmBg = makeWatermarkBg(watermarkText)
+
+  function toggleSelect(i: number) {
+    setSelected(prev => {
+      const next = new Set(prev)
+      if (next.has(i)) {
+        next.delete(i)
+      } else if (next.size < MAX_SELECT) {
+        next.add(i)
+      }
+      return next
+    })
+  }
 
   async function openLightbox(i: number) {
     setHovered(null)
@@ -75,10 +90,17 @@ export default function Gallery({ photos, watermarkText, slug, downloadEnabled }
     : mousePos.x + margin
   const py = Math.min(mousePos.y - previewH / 2, window.innerHeight - previewH - margin)
 
+  const atMax = selected.size >= MAX_SELECT
+
   return (
     <div className="protect">
       <p style={{ fontSize: 13, color: 'var(--sub)', marginBottom: 16 }}>
         全 {photos.length} 枚 — ホバーでプレビュー、クリックで拡大
+        {downloadEnabled && (
+          <span style={{ marginLeft: 8 }}>
+            · チェックボックスで複数選択して一括DL（最大{MAX_SELECT}枚）
+          </span>
+        )}
       </p>
 
       {/* グリッド */}
@@ -86,18 +108,25 @@ export default function Gallery({ photos, watermarkText, slug, downloadEnabled }
         {photos.map((p, i) => (
           <div
             key={p.id}
-            onClick={() => openLightbox(i)}
             onMouseEnter={e => { setHovered(i); setMousePos({ x: e.clientX, y: e.clientY }) }}
             onMouseMove={e  => setMousePos({ x: e.clientX, y: e.clientY })}
             onMouseLeave={() => setHovered(null)}
             style={{
               position: 'relative', aspectRatio: '1/1',
               borderRadius: 6, overflow: 'hidden',
-              background: '#e8e4de', cursor: 'zoom-in',
-              outline: hovered === i ? '2px solid var(--accent)' : 'none',
+              background: '#e8e4de',
+              outline: selected.has(i)
+                ? '3px solid var(--accent)'
+                : hovered === i ? '2px solid var(--accent)' : 'none',
               transition: 'outline .1s',
             }}
           >
+            {/* 画像クリックでライトボックス */}
+            <div
+              onClick={() => openLightbox(i)}
+              style={{ position: 'absolute', inset: 0, cursor: 'zoom-in', zIndex: 0 }}
+            />
+
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src={p.thumbUrl}
@@ -107,6 +136,37 @@ export default function Gallery({ photos, watermarkText, slug, downloadEnabled }
               onLoad={e => { (e.target as HTMLImageElement).style.opacity = '1' }}
             />
             <div className="watermark-overlay" style={{ backgroundImage: wmBg }} />
+
+            {/* 選択中オーバーレイ */}
+            {selected.has(i) && (
+              <div style={{
+                position: 'absolute', inset: 0,
+                background: 'rgba(157,124,92,0.22)',
+                zIndex: 1, pointerEvents: 'none',
+              }} />
+            )}
+
+            {/* チェックボックス */}
+            {downloadEnabled && (
+              <div
+                onClick={e => { e.stopPropagation(); toggleSelect(i) }}
+                title={atMax && !selected.has(i) ? `最大${MAX_SELECT}枚まで` : undefined}
+                style={{
+                  position: 'absolute', top: 6, left: 6, zIndex: 3,
+                  width: 22, height: 22, borderRadius: 4, boxSizing: 'border-box',
+                  background: selected.has(i) ? 'var(--accent)' : 'rgba(0,0,0,0.35)',
+                  border: `2px solid ${selected.has(i) ? 'var(--accent)' : 'rgba(255,255,255,0.9)'}`,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  cursor: atMax && !selected.has(i) ? 'not-allowed' : 'pointer',
+                  opacity: hovered === i || selected.has(i) || selected.size > 0 ? 1 : 0,
+                  transition: 'opacity .15s, background .15s',
+                }}
+              >
+                {selected.has(i) && (
+                  <span style={{ color: '#fff', fontSize: 12, fontWeight: 700, lineHeight: 1, userSelect: 'none' }}>✓</span>
+                )}
+              </div>
+            )}
           </div>
         ))}
       </div>
@@ -115,15 +175,11 @@ export default function Gallery({ photos, watermarkText, slug, downloadEnabled }
       {hovered !== null && current === null && (
         <div style={{
           position: 'fixed',
-          left: px,
-          top: Math.max(margin, py),
-          width: previewW,
-          height: previewH,
-          borderRadius: 10,
-          overflow: 'hidden',
+          left: px, top: Math.max(margin, py),
+          width: previewW, height: previewH,
+          borderRadius: 10, overflow: 'hidden',
           boxShadow: '0 12px 40px rgba(0,0,0,.35)',
-          pointerEvents: 'none',
-          zIndex: 50,
+          pointerEvents: 'none', zIndex: 50,
           background: '#e8e4de',
         }}>
           {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -150,7 +206,7 @@ export default function Gallery({ photos, watermarkText, slug, downloadEnabled }
             <button onClick={() => setCurrent(null)} style={closeBtn}>×</button>
             {downloadEnabled && (
               <button
-                onClick={e => { e.stopPropagation(); setDlTarget(current) }}
+                onClick={e => { e.stopPropagation(); setDlFileIds([photos[current].id]) }}
                 style={dlBtn}
               >
                 ↓ ダウンロード
@@ -177,12 +233,51 @@ export default function Gallery({ photos, watermarkText, slug, downloadEnabled }
         </div>
       )}
 
+      {/* フローティングカートバー */}
+      {selected.size > 0 && (
+        <div style={{
+          position: 'fixed', bottom: 24, left: '50%', transform: 'translateX(-50%)',
+          zIndex: 80,
+          background: 'rgba(20,15,8,0.94)', backdropFilter: 'blur(8px)',
+          color: '#fff', borderRadius: 40, padding: '12px 20px',
+          display: 'flex', alignItems: 'center', gap: 14,
+          boxShadow: '0 8px 32px rgba(0,0,0,.5)',
+          whiteSpace: 'nowrap',
+        }}>
+          <span style={{ fontSize: 14 }}>
+            {selected.size} / {MAX_SELECT} 枚選択中
+            {atMax && <span style={{ fontSize: 11, marginLeft: 6, opacity: 0.7 }}>（上限）</span>}
+          </span>
+          {downloadEnabled && (
+            <button
+              onClick={() => setDlFileIds([...selected].map(i => photos[i].id))}
+              style={{
+                padding: '7px 20px', fontSize: 13, fontWeight: 700,
+                background: 'var(--accent)', color: '#fff',
+                border: 'none', borderRadius: 20, cursor: 'pointer',
+              }}
+            >
+              まとめてダウンロード
+            </button>
+          )}
+          <button
+            onClick={() => setSelected(new Set())}
+            style={{
+              width: 28, height: 28, borderRadius: '50%', flexShrink: 0,
+              background: 'rgba(255,255,255,0.15)', border: 'none',
+              color: '#fff', fontSize: 18, cursor: 'pointer', lineHeight: 1,
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+            }}
+          >×</button>
+        </div>
+      )}
+
       {/* ダウンロードモーダル */}
-      {dlTarget !== null && (
+      {dlFileIds !== null && (
         <DownloadModal
-          fileId={photos[dlTarget].id}
+          fileIds={dlFileIds}
           slug={slug}
-          onClose={() => setDlTarget(null)}
+          onClose={() => setDlFileIds(null)}
         />
       )}
     </div>

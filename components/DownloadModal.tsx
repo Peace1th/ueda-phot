@@ -3,7 +3,7 @@
 import { useState } from 'react'
 
 type Props = {
-  fileId: string
+  fileIds: string[]
   slug: string
   onClose: () => void
 }
@@ -23,13 +23,15 @@ const INPUT_STYLE: React.CSSProperties = {
   width: '100%', boxSizing: 'border-box',
 }
 
-export default function DownloadModal({ fileId, slug, onClose }: Props) {
+export default function DownloadModal({ fileIds, slug, onClose }: Props) {
   const [name, setName]       = useState('')
   const [email, setEmail]     = useState('')
   const [phone, setPhone]     = useState('')
   const [agreed, setAgreed]   = useState(false)
   const [loading, setLoading] = useState(false)
   const [err, setErr]         = useState('')
+
+  const isBulk = fileIds.length > 1
 
   async function handleDownload() {
     if (!name.trim() || !email.trim()) { setErr('名前とメールアドレスは必須です'); return }
@@ -40,14 +42,14 @@ export default function DownloadModal({ fileId, slug, onClose }: Props) {
       const res = await fetch('/api/download', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ fileId, slug, name, email, phone }),
+        body: JSON.stringify({ fileIds, slug, name, email, phone }),
       })
       if (!res.ok) { setErr('ダウンロードに失敗しました'); setLoading(false); return }
       const blob = await res.blob()
       const url = URL.createObjectURL(blob)
       const a = document.createElement('a')
       a.href = url
-      a.download = 'photo.jpg'
+      a.download = isBulk ? 'photos.zip' : 'photo.jpg'
       document.body.appendChild(a)
       a.click()
       document.body.removeChild(a)
@@ -74,9 +76,13 @@ export default function DownloadModal({ fileId, slug, onClose }: Props) {
         maxWidth: 440, width: '100%', maxHeight: '90vh', overflowY: 'auto',
         boxShadow: '0 24px 64px rgba(0,0,0,.3)',
       }}>
-        <h2 style={{ fontSize: 17, fontWeight: 700, marginBottom: 6 }}>写真ダウンロード</h2>
+        <h2 style={{ fontSize: 17, fontWeight: 700, marginBottom: 6 }}>
+          {isBulk ? `${fileIds.length}枚まとめてダウンロード` : '写真ダウンロード'}
+        </h2>
         <p style={{ fontSize: 13, color: 'var(--sub)', marginBottom: 24, lineHeight: 1.7 }}>
-          ダウンロードには情報の入力と利用規約への同意が必要です。
+          {isBulk
+            ? `選択した${fileIds.length}枚をZIPファイルでダウンロードします。情報の入力と利用規約への同意が必要です。`
+            : 'ダウンロードには情報の入力と利用規約への同意が必要です。'}
         </p>
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 20 }}>
@@ -119,7 +125,9 @@ export default function DownloadModal({ fileId, slug, onClose }: Props) {
             background: loading ? '#c5aa87' : 'var(--accent)', color: '#fff',
             border: 'none', borderRadius: 6, cursor: loading ? 'default' : 'pointer',
           }}>
-            {loading ? 'ダウンロード中…' : 'ダウンロード'}
+            {loading
+              ? (isBulk ? 'ZIP作成中…' : 'ダウンロード中…')
+              : (isBulk ? `${fileIds.length}枚をダウンロード` : 'ダウンロード')}
           </button>
           <button onClick={onClose} style={{
             padding: '11px 18px', fontSize: 14,

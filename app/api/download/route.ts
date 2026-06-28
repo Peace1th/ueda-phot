@@ -4,12 +4,16 @@ import { verifyToken } from '@/lib/auth'
 import { getDriveFileBuffer } from '@/lib/drive'
 import { supabaseAdmin } from '@/lib/supabase'
 import sharp from 'sharp'
+import JSZip from 'jszip'
 
 export async function POST(req: NextRequest) {
-  const { fileId, slug, name, email, phone } = await req.json()
+  const { fileIds, slug, name, email, phone } = await req.json()
 
-  if (!fileId || !slug || !name?.trim() || !email?.trim()) {
+  if (!fileIds?.length || !slug || !name?.trim() || !email?.trim()) {
     return new Response('Bad request', { status: 400 })
+  }
+  if (fileIds.length > 10) {
+    return new Response('Max 10 files per request', { status: 400 })
   }
 
   const cookieStore = await cookies()
@@ -28,46 +32,66 @@ export async function POST(req: NextRequest) {
     return new Response('Download not enabled', { status: 403 })
   }
 
-  await supabaseAdmin.from('download_logs').insert({
-    album_slug: slug,
-    file_id: fileId,
-    requester_name: name.trim(),
-    requester_email: email.trim(),
-    requester_phone: phone?.trim() || null,
-  })
+  // ログ保存
+  await supabaseAdmin.from('download_logs').insert(
+    fileIds.map((fileId: string) => ({
+      album_slug: slug,
+      file_id: fileId,
+      requester_name: name.trim(),
+      requester_email: email.trim(),
+      requester_phone: phone?.trim() || null,
+    }))
+  )
 
-  const buffer = await getDriveFileBuffer(fileId)
-  let result: Buffer
-
-  if (album.dl_watermark_enabled && album.dl_watermark_text) {
+  async function processImage(fileId: string): Promise<Buffer> {
+    const buffer = await getDriveFileBuffer(fileId)
+    if (!album!.dl_watermark_enabled || !album!.dl_watermark_text) {
+      return sharp(buffer).jpeg({ quality: 95 }).toBuffer()
+    }
     const metadata = await sharp(buffer).metadata()
     const imgW = metadata.width ?? 1000
     const fontSize = Math.max(18, Math.round(imgW * 0.022))
     const pad = Math.round(fontSize * 0.6)
-    const text = String(album.dl_watermark_text)
+    const text = String(album!.dl_watermark_text)
       .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
     const svgW = Math.round(text.length * fontSize * 0.65) + pad * 2
     const svgH = fontSize + pad * 2
-    const opacity = ((album.dl_watermark_opacity ?? 15) / 100).toFixed(2)
-
+    const opacity = ((album!.dl_watermark_opacity ?? 15) / 100).toFixed(2)
     const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${svgW}" height="${svgH}">
       <text x="${pad}" y="${fontSize + Math.round(pad * 0.3)}"
         font-family="Arial,Helvetica,sans-serif" font-size="${fontSize}" font-weight="700"
         fill="rgba(0,0,0,${opacity})">${text}</text>
     </svg>`
-
-    result = await sharp(buffer)
-      .composite([{ input: Buffer.from(svg), gravity: (album.dl_watermark_position ?? 'southwest') as sharp.Gravity }])
+    return sharp(buffer)
+      .composite([{ input: Buffer.from(svg), gravity: (album!.dl_watermark_position ?? 'southwest') as sharp.Gravity }])
       .jpeg({ quality: 95 })
       .toBuffer()
-  } else {
-    result = await sharp(buffer).jpeg({ quality: 95 }).toBuffer()
   }
 
-  return new Response(new Uint8Array(result), {
+  // 1枚 → JPEG直接返却
+  if (fileIds.length === 1) {
+    const result = await processImage(fileIds[0])
+    return new Response(new Uint8Array(result), {
+      headers: {
+        'Content-Type': 'image/jpeg',
+        'Content-Disposition': 'attachment; filename="photo.jpg"',
+        'Cache-Control': 'no-store',
+      },
+    })
+  }
+
+  // 複数枚 → ZIP
+  const buffers = await Promise.all(fileIds.map(processImage))
+  const zip = new JSZip()
+  buffers.forEach((buf, i) => {
+    zip.file(`photo_${String(i + 1).padStart(2, '0')}.jpg`, buf)
+  })
+  const zipBuf = await zip.generateAsync({ type: 'nodebuffer', compression: 'DEFLATE' })
+
+  return new Response(new Uint8Array(zipBuf), {
     headers: {
-      'Content-Type': 'image/jpeg',
-      'Content-Disposition': 'attachment; filename="photo.jpg"',
+      'Content-Type': 'application/zip',
+      'Content-Disposition': 'attachment; filename="photos.zip"',
       'Cache-Control': 'no-store',
     },
   })
