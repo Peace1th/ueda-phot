@@ -19,7 +19,8 @@ export default async function GalleryPage({ params }: Props) {
     redirect(`/albums/${slug}`)
   }
 
-  const today = new Date().toISOString().slice(0, 10)
+  const jst = new Date(Date.now() + 9 * 60 * 60 * 1000)
+  const today = jst.toISOString().slice(0, 10)
   const { data: album } = await supabaseAdmin
     .from('albums')
     .select('id, slug, name, drive_folder_id, watermark_text')
