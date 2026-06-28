@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useRef, useCallback } from 'react'
+import { useState, useEffect } from 'react'
 
 type Photo = { id: string; url: string; thumbUrl: string }
 
@@ -20,29 +20,7 @@ export default function Gallery({ photos, watermarkText }: { photos: Photo[]; wa
   const [lbLoading, setLbLoading] = useState(false)
   const [hovered, setHovered]     = useState<number | null>(null)
   const [mousePos, setMousePos]   = useState({ x: 0, y: 0 })
-  const observerRef = useRef<IntersectionObserver | null>(null)
   const wmBg = makeWatermarkBg(watermarkText)
-
-  /* 遅延読み込み */
-  const observeCell = useCallback((el: HTMLDivElement | null) => {
-    if (!el) return
-    observerRef.current?.observe(el)
-  }, [])
-
-  useEffect(() => {
-    observerRef.current = new IntersectionObserver(entries => {
-      entries.forEach(en => {
-        if (!en.isIntersecting) return
-        const cell = en.target as HTMLDivElement
-        const img  = cell.querySelector('img') as HTMLImageElement | null
-        if (!img || img.src) return
-        img.src = cell.dataset.src!
-        img.onload = () => img.classList.add('loaded')
-        observerRef.current?.unobserve(cell)
-      })
-    }, { rootMargin: '400px' })
-    return () => observerRef.current?.disconnect()
-  }, [])
 
   /* ライトボックス */
   async function openLightbox(i: number) {
@@ -102,8 +80,6 @@ export default function Gallery({ photos, watermarkText }: { photos: Photo[]; wa
         {photos.map((p, i) => (
           <div
             key={p.id}
-            ref={observeCell}
-            data-src={p.thumbUrl}
             onClick={() => openLightbox(i)}
             onMouseEnter={e => { setHovered(i); setMousePos({ x: e.clientX, y: e.clientY }) }}
             onMouseMove={e  => setMousePos({ x: e.clientX, y: e.clientY })}
@@ -118,6 +94,8 @@ export default function Gallery({ photos, watermarkText }: { photos: Photo[]; wa
           >
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
+              src={p.thumbUrl}
+              loading="lazy"
               alt=""
               style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block', opacity: 0, transition: 'opacity .3s' }}
               onLoad={e => { (e.target as HTMLImageElement).style.opacity = '1' }}
