@@ -23,7 +23,7 @@ export default async function GalleryPage({ params }: Props) {
   const today = jst.toISOString().slice(0, 10)
   const { data: album } = await supabaseAdmin
     .from('albums')
-    .select('id, slug, name, drive_folder_id, watermark_text')
+    .select('id, slug, name, drive_folder_id, watermark_text, download_enabled')
     .eq('slug', slug)
     .eq('is_active', true)
     .or(`start_date.is.null,start_date.lte.${today}`)
@@ -53,7 +53,12 @@ export default async function GalleryPage({ params }: Props) {
           ← アルバム一覧に戻る
         </a>
       </div>
-      <Gallery photos={photos} watermarkText={album.watermark_text ?? '上田写真館'} />
+      <Gallery
+        photos={photos}
+        watermarkText={album.watermark_text ?? '上田写真館'}
+        slug={slug}
+        downloadEnabled={album.download_enabled ?? true}
+      />
     </main>
   )
 }

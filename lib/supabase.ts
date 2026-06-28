@@ -19,4 +19,19 @@ export type Album = {
   start_date: string | null
   end_date: string | null
   created_at: string
+  download_enabled: boolean
+  dl_watermark_enabled: boolean
+  dl_watermark_text: string
+  dl_watermark_opacity: number
+  dl_watermark_position: string
+}
+
+export type DownloadLog = {
+  id: string
+  album_slug: string
+  file_id: string
+  requester_name: string
+  requester_email: string
+  requester_phone: string | null
+  created_at: string
 }

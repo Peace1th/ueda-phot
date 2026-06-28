@@ -1,8 +1,16 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import DownloadModal from './DownloadModal'
 
 type Photo = { id: string; url: string; thumbUrl: string }
+
+type Props = {
+  photos: Photo[]
+  watermarkText: string
+  slug: string
+  downloadEnabled: boolean
+}
 
 function makeWatermarkBg(text: string): string {
   const t = text.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
@@ -14,19 +22,19 @@ function makeWatermarkBg(text: string): string {
   return `url("data:image/svg+xml;charset=utf8,${encodeURIComponent(svg)}")`
 }
 
-export default function Gallery({ photos, watermarkText }: { photos: Photo[]; watermarkText: string }) {
+export default function Gallery({ photos, watermarkText, slug, downloadEnabled }: Props) {
   const [current, setCurrent]     = useState<number | null>(null)
   const [lbSrc, setLbSrc]         = useState<string | null>(null)
   const [lbLoading, setLbLoading] = useState(false)
   const [hovered, setHovered]     = useState<number | null>(null)
   const [mousePos, setMousePos]   = useState({ x: 0, y: 0 })
+  const [dlTarget, setDlTarget]   = useState<number | null>(null)
   const wmBg = makeWatermarkBg(watermarkText)
 
-  /* ライトボックス */
   async function openLightbox(i: number) {
     setHovered(null)
     setCurrent(i)
-    setLbSrc(photos[i].thumbUrl) // サムネを即表示
+    setLbSrc(photos[i].thumbUrl)
     setLbLoading(true)
     const img = new Image()
     img.onload  = () => { setLbSrc(img.src); setLbLoading(false) }
@@ -52,7 +60,6 @@ export default function Gallery({ photos, watermarkText }: { photos: Photo[]; wa
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [current])
 
-  /* 右クリック・ドラッグ抑止 */
   useEffect(() => {
     const block = (e: Event) => { if ((e.target as HTMLElement).closest('.protect')) e.preventDefault() }
     document.addEventListener('contextmenu', block)
@@ -60,7 +67,6 @@ export default function Gallery({ photos, watermarkText }: { photos: Photo[]; wa
     return () => { document.removeEventListener('contextmenu', block); document.removeEventListener('dragstart', block) }
   }, [])
 
-  /* ホバープレビューの位置計算 */
   const previewW = 300
   const previewH = 300
   const margin   = 16
@@ -107,27 +113,22 @@ export default function Gallery({ photos, watermarkText }: { photos: Photo[]; wa
 
       {/* ホバープレビュー */}
       {hovered !== null && current === null && (
-        <div
-          style={{
-            position: 'fixed',
-            left: px,
-            top: Math.max(margin, py),
-            width: previewW,
-            height: previewH,
-            borderRadius: 10,
-            overflow: 'hidden',
-            boxShadow: '0 12px 40px rgba(0,0,0,.35)',
-            pointerEvents: 'none',
-            zIndex: 50,
-            background: '#e8e4de',
-          }}
-        >
+        <div style={{
+          position: 'fixed',
+          left: px,
+          top: Math.max(margin, py),
+          width: previewW,
+          height: previewH,
+          borderRadius: 10,
+          overflow: 'hidden',
+          boxShadow: '0 12px 40px rgba(0,0,0,.35)',
+          pointerEvents: 'none',
+          zIndex: 50,
+          background: '#e8e4de',
+        }}>
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={photos[hovered].thumbUrl}
-            alt=""
-            style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
-          />
+          <img src={photos[hovered].thumbUrl} alt=""
+            style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
           <div className="watermark-overlay" style={{ backgroundImage: wmBg }} />
         </div>
       )}
@@ -147,6 +148,14 @@ export default function Gallery({ photos, watermarkText }: { photos: Photo[]; wa
 
           <div style={{ position: 'relative', maxWidth: '100%', maxHeight: '100%' }}>
             <button onClick={() => setCurrent(null)} style={closeBtn}>×</button>
+            {downloadEnabled && (
+              <button
+                onClick={e => { e.stopPropagation(); setDlTarget(current) }}
+                style={dlBtn}
+              >
+                ↓ ダウンロード
+              </button>
+            )}
             {lbSrc && (
               <>
                 {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -167,6 +176,15 @@ export default function Gallery({ photos, watermarkText }: { photos: Photo[]; wa
           <button onClick={() => move(1)} style={{ ...navBtn, right: 12 }}>›</button>
         </div>
       )}
+
+      {/* ダウンロードモーダル */}
+      {dlTarget !== null && (
+        <DownloadModal
+          fileId={photos[dlTarget].id}
+          slug={slug}
+          onClose={() => setDlTarget(null)}
+        />
+      )}
     </div>
   )
 }
@@ -182,4 +200,13 @@ const closeBtn: React.CSSProperties = {
   position: 'absolute', top: -44, right: 0,
   color: '#fff', fontSize: 28, cursor: 'pointer',
   background: 'none', border: 'none', lineHeight: 1,
+}
+
+const dlBtn: React.CSSProperties = {
+  position: 'absolute', top: -44, left: 0,
+  color: '#fff', fontSize: 13, cursor: 'pointer',
+  padding: '7px 14px',
+  background: 'rgba(255,255,255,0.12)',
+  border: '1px solid rgba(255,255,255,0.3)',
+  borderRadius: 6, lineHeight: 1, whiteSpace: 'nowrap',
 }

@@ -6,18 +6,30 @@ type Album = {
   id: string; slug: string; name: string; description: string
   drive_folder_id: string; cover_file_id: string | null; watermark_text: string
   is_active: boolean; start_date: string | null; end_date: string | null
+  download_enabled: boolean; dl_watermark_enabled: boolean
+  dl_watermark_text: string; dl_watermark_opacity: number; dl_watermark_position: string
+}
+
+type DownloadLog = {
+  id: string; album_slug: string; file_id: string
+  requester_name: string; requester_email: string; requester_phone: string | null
+  created_at: string
 }
 
 type FormState = {
   name: string; slug: string; description: string; password: string
   drive_folder_id: string; cover_file_id: string; watermark_text: string
   start_date: string; end_date: string
+  download_enabled: boolean; dl_watermark_enabled: boolean
+  dl_watermark_text: string; dl_watermark_opacity: string; dl_watermark_position: string
 }
 
 const BLANK: FormState = {
   name: '', slug: '', description: '', password: '',
   drive_folder_id: '', cover_file_id: '', watermark_text: '上田写真館',
   start_date: '', end_date: '',
+  download_enabled: true, dl_watermark_enabled: true,
+  dl_watermark_text: '@ueda_photo', dl_watermark_opacity: '15', dl_watermark_position: 'southwest',
 }
 
 const INPUT: React.CSSProperties = {
@@ -33,7 +45,7 @@ const FIELDS = [
   { label: '合言葉（変更する場合）', key: 'password',        ph: '空白のままなら変更しない' },
   { label: 'DriveフォルダID *',     key: 'drive_folder_id', ph: '1BxiMVs0XRA5nFMdKvBdBZjg...' },
   { label: 'カバー写真のファイルID', key: 'cover_file_id',   ph: '任意' },
-  { label: '透かし文字',            key: 'watermark_text',  ph: '上田写真館' },
+  { label: '透かし文字（表示用）',   key: 'watermark_text',  ph: '上田写真館' },
   { label: '公開開始日',            key: 'start_date',      ph: '' },
   { label: '公開終了日',            key: 'end_date',        ph: '' },
 ]
@@ -42,15 +54,26 @@ const CREATE_FIELDS = FIELDS.map(f =>
   f.key === 'password' ? { ...f, label: '合言葉 *', ph: '閲覧者に伝えるパスワード' } : f
 )
 
+const DL_POSITIONS = [
+  { value: 'southwest', label: '左下' },
+  { value: 'southeast', label: '右下' },
+  { value: 'northwest', label: '左上' },
+  { value: 'northeast', label: '右上' },
+  { value: 'center',    label: '中央' },
+]
+
 export default function AdminPage() {
-  const [adminPw, setAdminPw] = useState('')
-  const [authed, setAuthed]   = useState(false)
-  const [albums, setAlbums]   = useState<Album[]>([])
-  const [msg, setMsg]         = useState('')
-  const [form, setForm]       = useState<FormState>(BLANK)
-  const [editId, setEditId]   = useState<string | null>(null)
-  const [editForm, setEditForm] = useState<FormState>(BLANK)
-  const [editMsg, setEditMsg] = useState('')
+  const [adminPw, setAdminPw]     = useState('')
+  const [authed, setAuthed]       = useState(false)
+  const [albums, setAlbums]       = useState<Album[]>([])
+  const [msg, setMsg]             = useState('')
+  const [form, setForm]           = useState<FormState>(BLANK)
+  const [editId, setEditId]       = useState<string | null>(null)
+  const [editForm, setEditForm]   = useState<FormState>(BLANK)
+  const [editMsg, setEditMsg]     = useState('')
+  const [logs, setLogs]           = useState<DownloadLog[]>([])
+  const [logsLoading, setLogsLoading] = useState(false)
+  const [logsLoaded, setLogsLoaded]   = useState(false)
 
   async function load(pw: string) {
     const res = await fetch('/api/admin/albums', { headers: { 'x-admin-password': pw } })
@@ -92,12 +115,17 @@ export default function AdminPage() {
       watermark_text: a.watermark_text ?? '上田写真館',
       start_date: a.start_date ?? '',
       end_date: a.end_date ?? '',
+      download_enabled: a.download_enabled ?? true,
+      dl_watermark_enabled: a.dl_watermark_enabled ?? true,
+      dl_watermark_text: a.dl_watermark_text ?? '@ueda_photo',
+      dl_watermark_opacity: String(a.dl_watermark_opacity ?? 15),
+      dl_watermark_position: a.dl_watermark_position ?? 'southwest',
     })
   }
 
   async function saveEdit(id: string) {
     setEditMsg('')
-    const payload: Record<string, string | null> = {
+    const payload: Record<string, string | number | boolean | null> = {
       id,
       name: editForm.name,
       slug: editForm.slug,
@@ -107,6 +135,11 @@ export default function AdminPage() {
       watermark_text: editForm.watermark_text,
       start_date: editForm.start_date || null,
       end_date: editForm.end_date || null,
+      download_enabled: editForm.download_enabled,
+      dl_watermark_enabled: editForm.dl_watermark_enabled,
+      dl_watermark_text: editForm.dl_watermark_text,
+      dl_watermark_opacity: parseInt(editForm.dl_watermark_opacity) || 15,
+      dl_watermark_position: editForm.dl_watermark_position,
     }
     if (editForm.password) payload.password = editForm.password
 
@@ -141,6 +174,14 @@ export default function AdminPage() {
     load(adminPw)
   }
 
+  async function loadLogs() {
+    setLogsLoading(true)
+    const res = await fetch('/api/admin/downloads', { headers: { 'x-admin-password': adminPw } })
+    setLogs(await res.json())
+    setLogsLoaded(true)
+    setLogsLoading(false)
+  }
+
   if (!authed) {
     return (
       <div style={{ maxWidth: 340 }}>
@@ -170,7 +211,7 @@ export default function AdminPage() {
               <input
                 type={f.key.includes('date') ? 'date' : f.key === 'password' ? 'password' : 'text'}
                 placeholder={f.ph}
-                value={(form as Record<string, string>)[f.key]}
+                value={((form as unknown) as Record<string, string>)[f.key]}
                 onChange={e => setForm(p => ({ ...p, [f.key]: e.target.value }))}
                 style={INPUT}
               />
@@ -202,7 +243,7 @@ export default function AdminPage() {
       </section>
 
       {/* アルバム一覧 */}
-      <section>
+      <section style={{ marginBottom: 64 }}>
         <h2 style={{ fontSize: 16, fontWeight: 700, marginBottom: 20 }}>アルバム一覧 ({albums.length}件)</h2>
         {albums.length === 0 && <p style={{ color: 'var(--sub)', fontSize: 13 }}>アルバムがありません。</p>}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
@@ -219,6 +260,8 @@ export default function AdminPage() {
                     /{a.slug}
                     {a.start_date && ` | ${a.start_date}`}
                     {a.end_date && ` 〜 ${a.end_date}`}
+                    {' · '}
+                    {a.download_enabled ? 'DL許可' : 'DL不可'}
                   </div>
                 </div>
                 <span style={{
@@ -248,36 +291,130 @@ export default function AdminPage() {
               {/* インライン編集フォーム */}
               {editId === a.id && (
                 <div style={{ background: '#faf8f5', borderTop: '1px solid var(--line)', padding: '24px 20px' }}>
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                  {/* 基本設定 */}
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 20 }}>
                     {FIELDS.map(f => (
                       <label key={f.key} style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
                         <span style={{ fontSize: 12, color: 'var(--sub)' }}>{f.label}</span>
                         <input
                           type={f.key.includes('date') ? 'date' : f.key === 'password' ? 'password' : 'text'}
                           placeholder={f.ph}
-                          value={(editForm as Record<string, string>)[f.key]}
+                          value={((editForm as unknown) as Record<string, string>)[f.key]}
                           onChange={e => setEditForm(p => ({ ...p, [f.key]: e.target.value }))}
                           style={INPUT}
                         />
                       </label>
                     ))}
-                    <div style={{ gridColumn: '1/-1', display: 'flex', gap: 10, alignItems: 'center', marginTop: 4 }}>
-                      <button onClick={() => saveEdit(a.id)} style={{
-                        padding: '9px 24px', background: 'var(--accent)', color: '#fff',
-                        border: 'none', borderRadius: 6, fontSize: 14, fontWeight: 700, cursor: 'pointer',
-                      }}>保存</button>
-                      <button onClick={() => setEditId(null)} style={{
-                        padding: '9px 18px', background: '#fff', color: 'var(--sub)',
-                        border: '1px solid var(--line)', borderRadius: 6, fontSize: 14, cursor: 'pointer',
-                      }}>キャンセル</button>
-                      {editMsg && <span style={{ fontSize: 13, color: editMsg.includes('エラー') ? '#d23b3b' : '#2a7a2a' }}>{editMsg}</span>}
+                  </div>
+
+                  {/* DL設定 */}
+                  <div style={{ borderTop: '1px solid var(--line)', paddingTop: 16, marginBottom: 16 }}>
+                    <p style={{ fontSize: 12, fontWeight: 700, color: 'var(--sub)', marginBottom: 12 }}>ダウンロード設定</p>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                      {/* トグル行 */}
+                      <div style={{ gridColumn: '1/-1', display: 'flex', gap: 24 }}>
+                        <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: 13 }}>
+                          <input type="checkbox" checked={editForm.download_enabled}
+                            onChange={e => setEditForm(p => ({ ...p, download_enabled: e.target.checked }))}
+                            style={{ accentColor: 'var(--accent)', width: 15, height: 15 }} />
+                          DLを許可する
+                        </label>
+                        <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: 13 }}>
+                          <input type="checkbox" checked={editForm.dl_watermark_enabled}
+                            onChange={e => setEditForm(p => ({ ...p, dl_watermark_enabled: e.target.checked }))}
+                            style={{ accentColor: 'var(--accent)', width: 15, height: 15 }} />
+                          署名を入れる
+                        </label>
+                      </div>
+                      {/* 署名テキスト */}
+                      <label style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                        <span style={{ fontSize: 12, color: 'var(--sub)' }}>署名テキスト</span>
+                        <input type="text" value={editForm.dl_watermark_text}
+                          onChange={e => setEditForm(p => ({ ...p, dl_watermark_text: e.target.value }))}
+                          placeholder="@ueda_photo" style={INPUT} />
+                      </label>
+                      {/* 透明度 */}
+                      <label style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                        <span style={{ fontSize: 12, color: 'var(--sub)' }}>署名の濃さ（%）</span>
+                        <input type="number" min={1} max={100} value={editForm.dl_watermark_opacity}
+                          onChange={e => setEditForm(p => ({ ...p, dl_watermark_opacity: e.target.value }))}
+                          style={INPUT} />
+                      </label>
+                      {/* 位置 */}
+                      <label style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                        <span style={{ fontSize: 12, color: 'var(--sub)' }}>署名の位置</span>
+                        <select value={editForm.dl_watermark_position}
+                          onChange={e => setEditForm(p => ({ ...p, dl_watermark_position: e.target.value }))}
+                          style={{ ...INPUT, cursor: 'pointer' }}>
+                          {DL_POSITIONS.map(pos => (
+                            <option key={pos.value} value={pos.value}>{pos.label}</option>
+                          ))}
+                        </select>
+                      </label>
                     </div>
+                  </div>
+
+                  <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+                    <button onClick={() => saveEdit(a.id)} style={{
+                      padding: '9px 24px', background: 'var(--accent)', color: '#fff',
+                      border: 'none', borderRadius: 6, fontSize: 14, fontWeight: 700, cursor: 'pointer',
+                    }}>保存</button>
+                    <button onClick={() => setEditId(null)} style={{
+                      padding: '9px 18px', background: '#fff', color: 'var(--sub)',
+                      border: '1px solid var(--line)', borderRadius: 6, fontSize: 14, cursor: 'pointer',
+                    }}>キャンセル</button>
+                    {editMsg && <span style={{ fontSize: 13, color: editMsg.includes('エラー') ? '#d23b3b' : '#2a7a2a' }}>{editMsg}</span>}
                   </div>
                 </div>
               )}
             </div>
           ))}
         </div>
+      </section>
+
+      {/* DLログ */}
+      <section>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 16 }}>
+          <h2 style={{ fontSize: 16, fontWeight: 700, margin: 0 }}>ダウンロードログ</h2>
+          <button onClick={loadLogs} disabled={logsLoading} style={{
+            padding: '6px 16px', fontSize: 12, cursor: logsLoading ? 'default' : 'pointer',
+            background: '#fff', border: '1px solid var(--line)', borderRadius: 4,
+          }}>
+            {logsLoading ? '読み込み中…' : logsLoaded ? '更新' : 'ログを表示'}
+          </button>
+          {logsLoaded && <span style={{ fontSize: 12, color: 'var(--sub)' }}>{logs.length}件</span>}
+        </div>
+
+        {logsLoaded && (
+          logs.length === 0 ? (
+            <p style={{ fontSize: 13, color: 'var(--sub)' }}>ダウンロード履歴はありません。</p>
+          ) : (
+            <div style={{ overflowX: 'auto' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+                <thead>
+                  <tr style={{ borderBottom: '2px solid var(--line)', textAlign: 'left' }}>
+                    {['日時', 'アルバム', '名前', 'メール', '電話'].map(h => (
+                      <th key={h} style={{ padding: '8px 12px', fontWeight: 700, whiteSpace: 'nowrap', color: 'var(--sub)' }}>{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {logs.map(log => (
+                    <tr key={log.id} style={{ borderBottom: '1px solid var(--line)' }}>
+                      <td style={{ padding: '8px 12px', whiteSpace: 'nowrap', color: 'var(--sub)' }}>
+                        {new Date(log.created_at).toLocaleString('ja-JP', { timeZone: 'Asia/Tokyo' })}
+                      </td>
+                      <td style={{ padding: '8px 12px', whiteSpace: 'nowrap' }}>{log.album_slug}</td>
+                      <td style={{ padding: '8px 12px' }}>{log.requester_name}</td>
+                      <td style={{ padding: '8px 12px' }}>{log.requester_email}</td>
+                      <td style={{ padding: '8px 12px', color: 'var(--sub)' }}>{log.requester_phone ?? '—'}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )
+        )}
       </section>
     </div>
   )
