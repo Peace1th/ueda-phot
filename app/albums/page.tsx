@@ -17,6 +17,11 @@ export default async function AlbumsPage() {
 
   return (
     <main style={{ maxWidth: 1100, margin: '0 auto', padding: '48px 24px' }}>
+      <style>{`
+        .album-card { transition: transform .15s, box-shadow .15s; }
+        .album-card:hover { transform: translateY(-3px); box-shadow: 0 8px 28px rgba(20,15,5,.10); }
+      `}</style>
+
       <h1 style={{ fontSize: 22, fontWeight: 700, letterSpacing: '0.08em', marginBottom: 8 }}>
         アルバム一覧
       </h1>
@@ -38,20 +43,10 @@ export default async function AlbumsPage() {
 
           return (
             <Link key={album.id} href={`/albums/${album.slug}`} style={{ textDecoration: 'none', color: 'inherit' }}>
-              <div style={{
+              <div className="album-card" style={{
                 background: 'var(--card)', border: '1px solid var(--line)',
                 borderRadius: 10, overflow: 'hidden',
-                transition: 'transform .15s, box-shadow .15s',
-              }}
-                onMouseEnter={e => {
-                  (e.currentTarget as HTMLDivElement).style.transform = 'translateY(-3px)'
-                  ;(e.currentTarget as HTMLDivElement).style.boxShadow = '0 8px 28px rgba(20,15,5,.10)'
-                }}
-                onMouseLeave={e => {
-                  (e.currentTarget as HTMLDivElement).style.transform = 'none'
-                  ;(e.currentTarget as HTMLDivElement).style.boxShadow = 'none'
-                }}
-              >
+              }}>
                 <div style={{ position: 'relative', aspectRatio: '4/3', background: '#e8e4de', overflow: 'hidden' }}>
                   {thumb
                     ? <img src={thumb} alt={album.name} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
