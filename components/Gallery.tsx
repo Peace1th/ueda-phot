@@ -2,6 +2,8 @@
 
 import { useState, useEffect, useRef } from 'react'
 import DownloadModal from './DownloadModal'
+import LoginModal from './LoginModal'
+import { useAuth } from './AuthProvider'
 
 type Photo = { id: string; url: string; thumbUrl: string; caption?: string }
 
@@ -32,6 +34,8 @@ export default function Gallery({ photos, watermarkText, slug, downloadEnabled }
   const [mousePos, setMousePos]   = useState({ x: 0, y: 0 })
   const [selected, setSelected]   = useState<Set<number>>(new Set())
   const [dlFileIds, setDlFileIds] = useState<string[] | null>(null)
+  const [showLogin, setShowLogin] = useState(false)
+  const { user, profile, loading: authLoading, signOut } = useAuth()
 
   // ピンチズーム
   const [lbScale, setLbScale]   = useState(1)
@@ -136,10 +140,33 @@ export default function Gallery({ photos, watermarkText, slug, downloadEnabled }
 
   return (
     <div className="protect">
-      <p style={{ fontSize: 13, color: 'var(--sub)', marginBottom: 16 }}>
-        全 {photos.length} 枚 — ホバーでプレビュー、クリックで拡大
-        {downloadEnabled && <span style={{ marginLeft: 8 }}>· チェックで複数選択DL（最大{MAX_SELECT}枚）</span>}
-      </p>
+      {/* 認証バー */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16, flexWrap: 'wrap', gap: 8 }}>
+        <p style={{ fontSize: 13, color: 'var(--sub)', margin: 0 }}>
+          全 {photos.length} 枚 — ホバーでプレビュー、クリックで拡大
+          {downloadEnabled && <span style={{ marginLeft: 8 }}>· チェックで複数選択DL（最大{MAX_SELECT}枚）</span>}
+        </p>
+        {!authLoading && (
+          user ? (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 13 }}>
+              <span style={{ color: 'var(--sub)' }}>
+                {profile?.name ? `${profile.name}さん` : user.email}
+              </span>
+              <button onClick={signOut} style={{
+                padding: '4px 12px', fontSize: 12, color: 'var(--sub)',
+                background: 'none', border: '1px solid var(--line)', borderRadius: 4, cursor: 'pointer',
+              }}>ログアウト</button>
+            </div>
+          ) : downloadEnabled ? (
+            <button onClick={() => setShowLogin(true)} style={{
+              padding: '5px 14px', fontSize: 12, fontWeight: 600,
+              color: 'var(--accent)', background: 'none',
+              border: '1px solid var(--accent)', borderRadius: 4, cursor: 'pointer',
+              whiteSpace: 'nowrap',
+            }}>ログインでDL情報を自動入力</button>
+          ) : null
+        )}
+      </div>
 
       {/* グリッド */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(150px,1fr))', gap: 8 }}>
@@ -295,6 +322,9 @@ export default function Gallery({ photos, watermarkText, slug, downloadEnabled }
       {dlFileIds !== null && (
         <DownloadModal fileIds={dlFileIds} slug={slug} onClose={() => setDlFileIds(null)} />
       )}
+
+      {/* ログインモーダル */}
+      {showLogin && <LoginModal onClose={() => setShowLogin(false)} />}
     </div>
   )
 }

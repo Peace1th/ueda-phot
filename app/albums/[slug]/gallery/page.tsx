@@ -1,6 +1,7 @@
 import { cookies, headers } from 'next/headers'
 import { notFound, redirect } from 'next/navigation'
 import { supabaseAdmin } from '@/lib/supabase'
+import { createSupabaseServerClient } from '@/lib/supabase-server'
 import { verifyToken } from '@/lib/auth'
 import { listDrivePhotos } from '@/lib/drive'
 import Gallery from '@/components/Gallery'
@@ -44,9 +45,25 @@ export default async function GalleryPage({ params }: Props) {
   const latitude  = hdrs.get('x-vercel-ip-latitude') ?? null
   const longitude = hdrs.get('x-vercel-ip-longitude') ?? null
   const timezone  = hdrs.get('x-vercel-ip-timezone') ?? null
+
+  // ログイン済みユーザー情報を取得
+  const supabaseAuth = await createSupabaseServerClient()
+  const { data: { user: authUser } } = await supabaseAuth.auth.getUser()
+  let viewerUserId: string | null = null
+  let viewerName: string | null   = null
+  let viewerEmail: string | null  = null
+  if (authUser) {
+    viewerUserId = authUser.id
+    viewerEmail  = authUser.email ?? null
+    const { data: prof } = await supabaseAdmin
+      .from('user_profiles').select('name').eq('id', authUser.id).single()
+    viewerName = prof?.name ?? null
+  }
+
   await supabaseAdmin.from('view_logs').insert({
     album_slug: slug, ip_address: ip, user_agent: ua,
     city, country, region, latitude, longitude, timezone,
+    viewer_user_id: viewerUserId, viewer_name: viewerName, viewer_email: viewerEmail,
   })
 
   // Google Drive からフォルダ内の写真一覧を取得

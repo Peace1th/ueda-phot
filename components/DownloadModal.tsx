@@ -1,6 +1,8 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import { useAuth } from './AuthProvider'
+import { createSupabaseBrowserClient } from '@/lib/supabase-browser'
 
 type Props = {
   fileIds: string[]
@@ -24,21 +26,42 @@ const INPUT_STYLE: React.CSSProperties = {
 }
 
 export default function DownloadModal({ fileIds, slug, onClose }: Props) {
+  const { user, profile } = useAuth()
   const [name, setName]       = useState('')
   const [email, setEmail]     = useState('')
   const [phone, setPhone]     = useState('')
+  const [saveProfile, setSaveProfile] = useState(false)
   const [agreed, setAgreed]   = useState(false)
   const [loading, setLoading] = useState(false)
   const [err, setErr]         = useState('')
 
+  useEffect(() => {
+    if (user) {
+      setEmail(user.email ?? '')
+      if (profile) {
+        setName(profile.name ?? '')
+        setPhone(profile.phone ?? '')
+      }
+    }
+  }, [user, profile])
+
   const isBulk = fileIds.length > 1
+  const isLoggedIn = !!user
 
   async function handleDownload() {
     if (!name.trim() || !email.trim()) { setErr('名前とメールアドレスは必須です'); return }
     if (!agreed) { setErr('利用規約に同意してください'); return }
-    setLoading(true)
-    setErr('')
+    setLoading(true); setErr('')
+
     try {
+      if (isLoggedIn && saveProfile) {
+        const supabase = createSupabaseBrowserClient()
+        await supabase.from('user_profiles').upsert({
+          id: user.id, name: name.trim(), phone: phone.trim(),
+          updated_at: new Date().toISOString(),
+        })
+      }
+
       const res = await fetch('/api/download', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -81,8 +104,9 @@ export default function DownloadModal({ fileIds, slug, onClose }: Props) {
         </h2>
         <p style={{ fontSize: 13, color: 'var(--sub)', marginBottom: 24, lineHeight: 1.7 }}>
           {isBulk
-            ? `選択した${fileIds.length}枚をZIPファイルでダウンロードします。情報の入力と利用規約への同意が必要です。`
+            ? `選択した${fileIds.length}枚をZIPファイルでダウンロードします。`
             : 'ダウンロードには情報の入力と利用規約への同意が必要です。'}
+          {isLoggedIn && <span style={{ color: 'var(--accent)' }}> 情報を自動入力しました。</span>}
         </p>
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 20 }}>
@@ -94,7 +118,9 @@ export default function DownloadModal({ fileIds, slug, onClose }: Props) {
           <label style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
             <span style={{ fontSize: 12, color: 'var(--sub)' }}>メールアドレス *</span>
             <input type="email" placeholder="example@email.com" value={email}
-              onChange={e => setEmail(e.target.value)} style={INPUT_STYLE} />
+              onChange={e => setEmail(e.target.value)}
+              style={{ ...INPUT_STYLE, background: isLoggedIn ? '#f8f6f2' : '#fff' }}
+              readOnly={isLoggedIn} />
           </label>
           <label style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
             <span style={{ fontSize: 12, color: 'var(--sub)' }}>電話番号</span>
@@ -102,6 +128,14 @@ export default function DownloadModal({ fileIds, slug, onClose }: Props) {
               onChange={e => setPhone(e.target.value)} style={INPUT_STYLE} />
           </label>
         </div>
+
+        {isLoggedIn && (
+          <label style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16, cursor: 'pointer' }}>
+            <input type="checkbox" checked={saveProfile} onChange={e => setSaveProfile(e.target.checked)}
+              style={{ accentColor: 'var(--accent)', width: 15, height: 15 }} />
+            <span style={{ fontSize: 13, color: 'var(--sub)' }}>この情報を次回のために保存する</span>
+          </label>
+        )}
 
         <div style={{
           background: '#f8f6f2', borderRadius: 8, padding: 16,

@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
 import { Noto_Sans_JP } from 'next/font/google'
 import Link from 'next/link'
+import { AuthProvider } from '@/components/AuthProvider'
 import './globals.css'
 
 const noto = Noto_Sans_JP({ subsets: ['latin'], weight: ['400', '700'] })
@@ -29,7 +30,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           </nav>
         </header>
 
-        <div style={{ flex: 1 }}>{children}</div>
+        <AuthProvider>
+          <div style={{ flex: 1 }}>{children}</div>
+        </AuthProvider>
 
         <footer style={{
           textAlign: 'center', padding: '36px 24px',
