@@ -32,14 +32,27 @@ export default async function GalleryPage({ params }: Props) {
 
   if (!album) notFound()
 
+  // 閲覧ログ記録
+  await supabaseAdmin.from('view_logs').insert({ album_slug: slug })
+
   // Google Drive からフォルダ内の写真一覧を取得
-  let photos: { id: string; url: string; thumbUrl: string }[] = []
+  let photos: { id: string; url: string; thumbUrl: string; caption?: string }[] = []
   try {
     const files = await listDrivePhotos(album.drive_folder_id)
+
+    // キャプション取得
+    const fileIds = files.map(f => f.id)
+    const { data: captionRows } = fileIds.length
+      ? await supabaseAdmin.from('photo_captions').select('file_id, caption').in('file_id', fileIds)
+      : { data: [] }
+    const captionMap: Record<string, string> = {}
+    ;(captionRows ?? []).forEach(r => { captionMap[r.file_id] = r.caption })
+
     photos = files.map(f => ({
       id: f.id,
       thumbUrl: `/api/photo?fileId=${f.id}&slug=${slug}&size=thumb`,
       url:      `/api/photo?fileId=${f.id}&slug=${slug}&size=medium`,
+      caption:  captionMap[f.id] || undefined,
     }))
   } catch (e) {
     console.error('Drive fetch error:', e)

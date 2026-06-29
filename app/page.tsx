@@ -1,6 +1,13 @@
 import Link from 'next/link'
+import { supabaseAdmin } from '@/lib/supabase'
 
-export default function HomePage() {
+export const dynamic = 'force-dynamic'
+
+export default async function HomePage() {
+  const { data } = await supabaseAdmin
+    .from('site_settings').select('value').eq('key', 'home_intro').single()
+  const homeIntro = data?.value ?? ''
+
   return (
     <main>
       {/* Hero */}
@@ -37,8 +44,20 @@ export default function HomePage() {
         </Link>
       </section>
 
+      {/* 管理者設定の紹介文 */}
+      {homeIntro && (
+        <section style={{ maxWidth: 680, margin: '64px auto 0', padding: '0 24px', textAlign: 'center' }}>
+          <p style={{
+            fontSize: 14, color: 'var(--ink)', lineHeight: 2.2,
+            whiteSpace: 'pre-wrap', borderBottom: '1px solid var(--line)', paddingBottom: 48,
+          }}>
+            {homeIntro}
+          </p>
+        </section>
+      )}
+
       {/* How it works */}
-      <section style={{ maxWidth: 860, margin: '80px auto 0', padding: '0 24px' }}>
+      <section style={{ maxWidth: 860, margin: homeIntro ? '48px auto 0' : '80px auto 0', padding: '0 24px' }}>
         <h2 style={{ textAlign: 'center', fontSize: 18, fontWeight: 700, letterSpacing: '0.1em', marginBottom: 40 }}>
           ご利用の流れ
         </h2>
