@@ -17,6 +17,7 @@ type ViewLog = {
   id: string; album_slug: string; accessed_at: string
   ip_address: string | null; user_agent: string | null
   city: string | null; country: string | null
+  region: string | null; latitude: string | null; longitude: string | null; timezone: string | null
 }
 type DriveFile = { id: string; name: string }
 
@@ -542,7 +543,7 @@ export default function AdminPage() {
           : <div style={{ overflowX: 'auto' }}>
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
                 <thead><tr style={{ borderBottom: '2px solid var(--line)', textAlign: 'left' }}>
-                  {['日時','アルバム','IP','地域','端末'].map(h => (
+                  {['日時','アルバム','IP','都市・地域','国','座標（地図）','TZ','端末'].map(h => (
                     <th key={h} style={{ padding: '8px 12px', fontWeight: 700, whiteSpace: 'nowrap', color: 'var(--sub)' }}>{h}</th>
                   ))}
                 </tr></thead>
@@ -556,7 +557,22 @@ export default function AdminPage() {
                       {log.ip_address ?? '—'}
                     </td>
                     <td style={{ padding: '8px 12px', whiteSpace: 'nowrap' }}>
-                      {[log.city, log.country].filter(Boolean).join(' / ') || '—'}
+                      {[log.city, log.region].filter(Boolean).join(' ') || '—'}
+                    </td>
+                    <td style={{ padding: '8px 12px', whiteSpace: 'nowrap' }}>
+                      {log.country ?? '—'}
+                    </td>
+                    <td style={{ padding: '8px 12px', whiteSpace: 'nowrap', fontSize: 12 }}>
+                      {log.latitude && log.longitude
+                        ? <a href={`https://www.google.com/maps?q=${log.latitude},${log.longitude}`}
+                            target="_blank" rel="noreferrer"
+                            style={{ color: 'var(--accent)', textDecoration: 'none' }}>
+                            {parseFloat(log.latitude).toFixed(3)}, {parseFloat(log.longitude).toFixed(3)} 🗺
+                          </a>
+                        : '—'}
+                    </td>
+                    <td style={{ padding: '8px 12px', whiteSpace: 'nowrap', color: 'var(--sub)', fontSize: 12 }}>
+                      {log.timezone ?? '—'}
                     </td>
                     <td style={{ padding: '8px 12px', whiteSpace: 'nowrap', color: 'var(--sub)' }}>
                       {parseUA(log.user_agent)}

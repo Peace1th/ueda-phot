@@ -35,12 +35,19 @@ export default async function GalleryPage({ params }: Props) {
   // 閲覧ログ記録（IP・UA・地域）
   const hdrs = await headers()
   const forwarded = hdrs.get('x-forwarded-for')
-  const ip      = forwarded ? forwarded.split(',')[0].trim() : (hdrs.get('x-real-ip') ?? null)
-  const ua      = hdrs.get('user-agent') ?? null
-  const rawCity = hdrs.get('x-vercel-ip-city')
-  const city    = rawCity ? decodeURIComponent(rawCity) : null
-  const country = hdrs.get('x-vercel-ip-country') ?? null
-  await supabaseAdmin.from('view_logs').insert({ album_slug: slug, ip_address: ip, user_agent: ua, city, country })
+  const ip        = forwarded ? forwarded.split(',')[0].trim() : (hdrs.get('x-real-ip') ?? null)
+  const ua        = hdrs.get('user-agent') ?? null
+  const rawCity   = hdrs.get('x-vercel-ip-city')
+  const city      = rawCity ? decodeURIComponent(rawCity) : null
+  const country   = hdrs.get('x-vercel-ip-country') ?? null
+  const region    = hdrs.get('x-vercel-ip-country-region') ?? null
+  const latitude  = hdrs.get('x-vercel-ip-latitude') ?? null
+  const longitude = hdrs.get('x-vercel-ip-longitude') ?? null
+  const timezone  = hdrs.get('x-vercel-ip-timezone') ?? null
+  await supabaseAdmin.from('view_logs').insert({
+    album_slug: slug, ip_address: ip, user_agent: ua,
+    city, country, region, latitude, longitude, timezone,
+  })
 
   // Google Drive からフォルダ内の写真一覧を取得
   let photos: { id: string; url: string; thumbUrl: string; caption?: string }[] = []
