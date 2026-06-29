@@ -13,7 +13,11 @@ type DownloadLog = {
   id: string; album_slug: string; file_id: string
   requester_name: string; requester_email: string; requester_phone: string | null; created_at: string
 }
-type ViewLog = { id: string; album_slug: string; accessed_at: string }
+type ViewLog = {
+  id: string; album_slug: string; accessed_at: string
+  ip_address: string | null; user_agent: string | null
+  city: string | null; country: string | null
+}
 type DriveFile = { id: string; name: string }
 
 type FormState = {
@@ -57,6 +61,17 @@ const DL_POSITIONS = [
   { value: 'northwest', label: '左上' }, { value: 'northeast', label: '右上' },
   { value: 'center', label: '中央' },
 ]
+
+function parseUA(ua: string | null): string {
+  if (!ua) return '不明'
+  if (/iPhone/i.test(ua)) return 'iPhone'
+  if (/iPad/i.test(ua)) return 'iPad'
+  if (/Android.*Mobile/i.test(ua)) return 'Android スマホ'
+  if (/Android/i.test(ua)) return 'Android タブレット'
+  if (/Mac/i.test(ua)) return 'Mac'
+  if (/Windows/i.test(ua)) return 'Windows'
+  return 'その他'
+}
 
 export default function AdminPage() {
   const [adminPw, setAdminPw] = useState('')
@@ -527,7 +542,7 @@ export default function AdminPage() {
           : <div style={{ overflowX: 'auto' }}>
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
                 <thead><tr style={{ borderBottom: '2px solid var(--line)', textAlign: 'left' }}>
-                  {['日時','アルバム'].map(h => (
+                  {['日時','アルバム','IP','地域','端末'].map(h => (
                     <th key={h} style={{ padding: '8px 12px', fontWeight: 700, whiteSpace: 'nowrap', color: 'var(--sub)' }}>{h}</th>
                   ))}
                 </tr></thead>
@@ -536,7 +551,16 @@ export default function AdminPage() {
                     <td style={{ padding: '8px 12px', whiteSpace: 'nowrap', color: 'var(--sub)' }}>
                       {new Date(log.accessed_at).toLocaleString('ja-JP', { timeZone: 'Asia/Tokyo' })}
                     </td>
-                    <td style={{ padding: '8px 12px' }}>{log.album_slug}</td>
+                    <td style={{ padding: '8px 12px', whiteSpace: 'nowrap' }}>{log.album_slug}</td>
+                    <td style={{ padding: '8px 12px', whiteSpace: 'nowrap', fontFamily: 'monospace', fontSize: 12, color: 'var(--sub)' }}>
+                      {log.ip_address ?? '—'}
+                    </td>
+                    <td style={{ padding: '8px 12px', whiteSpace: 'nowrap' }}>
+                      {[log.city, log.country].filter(Boolean).join(' / ') || '—'}
+                    </td>
+                    <td style={{ padding: '8px 12px', whiteSpace: 'nowrap', color: 'var(--sub)' }}>
+                      {parseUA(log.user_agent)}
+                    </td>
                   </tr>
                 ))}</tbody>
               </table>
