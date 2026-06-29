@@ -13,7 +13,14 @@ type Props = { params: Promise<{ slug: string }> }
 export default async function GalleryPage({ params }: Props) {
   const { slug } = await params
 
-  // 認証チェック
+  // Supabase Auth チェック（ログイン必須）
+  const supabaseAuth = await createSupabaseServerClient()
+  const { data: { user: authUser } } = await supabaseAuth.auth.getUser()
+  if (!authUser) {
+    redirect(`/albums/${slug}`)
+  }
+
+  // アルバムトークンチェック
   const cookieStore = await cookies()
   const token = cookieStore.get(`album_token_${slug}`)?.value
   if (!token || !verifyToken(token, slug)) {
@@ -46,9 +53,7 @@ export default async function GalleryPage({ params }: Props) {
   const longitude = hdrs.get('x-vercel-ip-longitude') ?? null
   const timezone  = hdrs.get('x-vercel-ip-timezone') ?? null
 
-  // ログイン済みユーザー情報を取得
-  const supabaseAuth = await createSupabaseServerClient()
-  const { data: { user: authUser } } = await supabaseAuth.auth.getUser()
+  // ログイン済みユーザー情報を取得（上でチェック済みなので authUser は必ず存在）
   let viewerUserId: string | null = null
   let viewerName: string | null   = null
   let viewerEmail: string | null  = null

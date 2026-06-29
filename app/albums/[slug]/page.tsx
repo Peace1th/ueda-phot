@@ -1,6 +1,8 @@
 import { notFound } from 'next/navigation'
 import { supabaseAdmin } from '@/lib/supabase'
+import { createSupabaseServerClient } from '@/lib/supabase-server'
 import PasswordForm from '@/components/PasswordForm'
+import AlbumLoginGate from '@/components/AlbumLoginGate'
 
 export const dynamic = 'force-dynamic'
 
@@ -22,9 +24,15 @@ export default async function AlbumPage({ params }: Props) {
 
   if (!album) notFound()
 
+  const supabaseAuth = await createSupabaseServerClient()
+  const { data: { user: authUser } } = await supabaseAuth.auth.getUser()
+
   return (
     <main>
-      <PasswordForm slug={album.slug} albumName={album.name} />
+      {authUser
+        ? <PasswordForm slug={album.slug} albumName={album.name} />
+        : <AlbumLoginGate slug={album.slug} albumName={album.name} />
+      }
     </main>
   )
 }
