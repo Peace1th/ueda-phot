@@ -18,6 +18,7 @@ type ViewLog = {
   ip_address: string | null; user_agent: string | null
   city: string | null; country: string | null
   region: string | null; latitude: string | null; longitude: string | null; timezone: string | null
+  viewer_name: string | null; viewer_email: string | null
 }
 type DriveFile = { id: string; name: string }
 
@@ -543,7 +544,7 @@ export default function AdminPage() {
           : <div style={{ overflowX: 'auto' }}>
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
                 <thead><tr style={{ borderBottom: '2px solid var(--line)', textAlign: 'left' }}>
-                  {['日時','アルバム','IP','都市・地域','国','座標（地図）','TZ','端末'].map(h => (
+                  {['日時','アルバム','名前','メール','IP','都市・地域','国','座標（地図）','TZ','端末'].map(h => (
                     <th key={h} style={{ padding: '8px 12px', fontWeight: 700, whiteSpace: 'nowrap', color: 'var(--sub)' }}>{h}</th>
                   ))}
                 </tr></thead>
@@ -553,6 +554,8 @@ export default function AdminPage() {
                       {new Date(log.accessed_at).toLocaleString('ja-JP', { timeZone: 'Asia/Tokyo' })}
                     </td>
                     <td style={{ padding: '8px 12px', whiteSpace: 'nowrap' }}>{log.album_slug}</td>
+                    <td style={{ padding: '8px 12px', whiteSpace: 'nowrap' }}>{log.viewer_name ?? '—'}</td>
+                    <td style={{ padding: '8px 12px', whiteSpace: 'nowrap' }}>{log.viewer_email ?? '—'}</td>
                     <td style={{ padding: '8px 12px', whiteSpace: 'nowrap', fontFamily: 'monospace', fontSize: 12, color: 'var(--sub)' }}>
                       {log.ip_address ?? '—'}
                     </td>

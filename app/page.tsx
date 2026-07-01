@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import { supabaseAdmin } from '@/lib/supabase'
+import ProfileSection from '@/components/ProfileSection'
 
 export const dynamic = 'force-dynamic'
 
@@ -78,6 +79,9 @@ export default async function HomePage() {
           ))}
         </div>
       </section>
+
+      {/* プロフィール編集（ログイン済みユーザーのみ表示） */}
+      <ProfileSection />
 
       {/* Notice */}
       <section style={{ maxWidth: 600, margin: '64px auto 0', padding: '0 24px', textAlign: 'center' }}>
