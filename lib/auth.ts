@@ -10,7 +10,13 @@ export function createToken(slug: string): string {
 
 export function verifyToken(token: string, slug: string): boolean {
   try {
-    const [tSlug, ts, sig] = token.split('.')
+    // Split from the right so slugs containing dots work correctly
+    const lastDot = token.lastIndexOf('.')
+    const secondLastDot = token.lastIndexOf('.', lastDot - 1)
+    if (lastDot === -1 || secondLastDot === -1) return false
+    const tSlug = token.slice(0, secondLastDot)
+    const ts = token.slice(secondLastDot + 1, lastDot)
+    const sig = token.slice(lastDot + 1)
     if (tSlug !== slug) return false
     const age = Date.now() - parseInt(ts)
     if (age > 6 * 60 * 60 * 1000) return false   // 6時間で失効

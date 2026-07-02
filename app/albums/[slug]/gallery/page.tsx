@@ -20,10 +20,23 @@ export default async function GalleryPage({ params }: Props) {
     redirect(`/albums/${slug}`)
   }
 
-  // アルバムトークンチェック
+  // アルバムトークン OR 永続アクセスチェック
   const cookieStore = await cookies()
   const token = cookieStore.get(`album_token_${slug}`)?.value
-  if (!token || !verifyToken(token, slug)) {
+  const hasTokenAccess = !!(token && verifyToken(token, slug))
+
+  let hasPersistentAccess = false
+  if (!hasTokenAccess) {
+    const { data: access } = await supabaseAdmin
+      .from('user_album_access')
+      .select('id')
+      .eq('user_id', authUser!.id)
+      .eq('album_slug', slug)
+      .maybeSingle()
+    hasPersistentAccess = !!access
+  }
+
+  if (!hasTokenAccess && !hasPersistentAccess) {
     redirect(`/albums/${slug}`)
   }
 

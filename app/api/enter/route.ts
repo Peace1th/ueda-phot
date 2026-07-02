@@ -3,6 +3,7 @@ import { cookies } from 'next/headers'
 import bcrypt from 'bcryptjs'
 import { supabaseAdmin } from '@/lib/supabase'
 import { createToken } from '@/lib/auth'
+import { createSupabaseServerClient } from '@/lib/supabase-server'
 
 export async function POST(req: NextRequest) {
   const { slug, password } = await req.json()
@@ -40,6 +41,17 @@ export async function POST(req: NextRequest) {
     path: '/',
     secure: process.env.NODE_ENV === 'production',
   })
+
+  // ログイン済みの場合は永続アクセスを保存
+  const supabaseAuth = await createSupabaseServerClient()
+  const { data: { user: authUser } } = await supabaseAuth.auth.getUser()
+  if (authUser) {
+    const { error: upsertError } = await supabaseAdmin.from('user_album_access').upsert({
+      user_id: authUser.id,
+      album_slug: slug,
+    }, { onConflict: 'user_id,album_slug' })
+    if (upsertError) console.error('user_album_access upsert failed:', upsertError)
+  }
 
   return Response.json({ ok: true })
 }

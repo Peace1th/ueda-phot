@@ -1,4 +1,4 @@
-import { notFound } from 'next/navigation'
+import { notFound, redirect } from 'next/navigation'
 import { supabaseAdmin } from '@/lib/supabase'
 import { createSupabaseServerClient } from '@/lib/supabase-server'
 import PasswordForm from '@/components/PasswordForm'
@@ -26,6 +26,17 @@ export default async function AlbumPage({ params }: Props) {
 
   const supabaseAuth = await createSupabaseServerClient()
   const { data: { user: authUser } } = await supabaseAuth.auth.getUser()
+
+  // ログイン済みで永続アクセスがある場合はギャラリーへ
+  if (authUser) {
+    const { data: access } = await supabaseAdmin
+      .from('user_album_access')
+      .select('id')
+      .eq('user_id', authUser.id)
+      .eq('album_slug', slug)
+      .maybeSingle()
+    if (access) redirect(`/albums/${slug}/gallery`)
+  }
 
   return (
     <main>
