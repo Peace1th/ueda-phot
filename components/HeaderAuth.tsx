@@ -4,7 +4,7 @@ import Link from 'next/link'
 import { useAuth } from './AuthProvider'
 
 export default function HeaderAuth() {
-  const { user, profile, loading } = useAuth()
+  const { user, loading } = useAuth()
 
   if (loading) return null
 
@@ -17,8 +17,12 @@ export default function HeaderAuth() {
   }
 
   return (
-    <Link href="/" style={{ fontSize: 13, color: 'var(--ink)', textDecoration: 'none' }}>
-      {profile?.name ?? user.email ?? 'マイページ'}
+    <Link href="/mypage" style={{
+      fontSize: 12, color: 'var(--ink)', textDecoration: 'none',
+      border: '1px solid var(--line)', borderRadius: 5,
+      padding: '5px 14px', letterSpacing: '0.04em',
+    }}>
+      マイページ
     </Link>
   )
 }
