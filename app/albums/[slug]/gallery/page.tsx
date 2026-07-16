@@ -40,6 +40,11 @@ export default async function GalleryPage({ params }: Props) {
     redirect(`/albums/${slug}`)
   }
 
+  // 永続アクセスはあるがCookieがない → Cookieをセットしてリロード（写真APIがCookieを必要とするため）
+  if (hasPersistentAccess && !hasTokenAccess) {
+    redirect(`/api/set-album-token?slug=${encodeURIComponent(slug)}&next=/albums/${encodeURIComponent(slug)}/gallery`)
+  }
+
   const jst = new Date(Date.now() + 9 * 60 * 60 * 1000)
   const today = jst.toISOString().slice(0, 10)
   const { data: album } = await supabaseAdmin
