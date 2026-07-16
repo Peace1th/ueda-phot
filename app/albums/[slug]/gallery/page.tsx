@@ -117,7 +117,7 @@ export default async function GalleryPage({ params }: Props) {
       </div>
       <Gallery
         photos={photos}
-        watermarkText={album.watermark_text ?? '上田写真館'}
+        watermarkText={album.watermark_text ?? 'Peacephoto'}
         slug={slug}
         downloadEnabled={album.download_enabled ?? true}
       />

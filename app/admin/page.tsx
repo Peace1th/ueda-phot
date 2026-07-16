@@ -32,7 +32,7 @@ type FormState = {
 
 const BLANK: FormState = {
   name: '', slug: '', description: '', password: '',
-  drive_folder_id: '', cover_file_id: '', watermark_text: '上田写真館',
+  drive_folder_id: '', cover_file_id: '', watermark_text: 'Peacephoto',
   start_date: '', end_date: '',
   download_enabled: true, dl_watermark_enabled: true,
   dl_watermark_text: '@ueda_photo', dl_watermark_opacity: '15', dl_watermark_position: 'southwest',
@@ -51,7 +51,7 @@ const FIELDS = [
   { label: '合言葉（変更する場合）', key: 'password',        ph: '空白のままなら変更しない' },
   { label: 'DriveフォルダID *',     key: 'drive_folder_id', ph: '1BxiMVs0XRA5nFMdKvBdBZjg...' },
   { label: 'カバー写真のファイルID', key: 'cover_file_id',   ph: '任意' },
-  { label: '透かし文字（表示用）',   key: 'watermark_text',  ph: '上田写真館' },
+  { label: '透かし文字（表示用）',   key: 'watermark_text',  ph: 'Peacephoto' },
   { label: '公開開始日',            key: 'start_date',      ph: '' },
   { label: '公開終了日',            key: 'end_date',        ph: '' },
 ]
@@ -163,7 +163,7 @@ export default function AdminPage() {
     setEditForm({
       name: a.name, slug: a.slug, description: a.description ?? '', password: '',
       drive_folder_id: a.drive_folder_id, cover_file_id: a.cover_file_id ?? '',
-      watermark_text: a.watermark_text ?? '上田写真館',
+      watermark_text: a.watermark_text ?? 'Peacephoto',
       start_date: a.start_date ?? '', end_date: a.end_date ?? '',
       download_enabled: a.download_enabled ?? true,
       dl_watermark_enabled: a.dl_watermark_enabled ?? true,

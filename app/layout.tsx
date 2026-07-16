@@ -8,8 +8,8 @@ import './globals.css'
 const noto = Noto_Sans_JP({ subsets: ['latin'], weight: ['400', '700'] })
 
 export const metadata: Metadata = {
-  title: '上田写真館',
-  description: '上田写真館 — 思い出をきれいに残す、あなたのプライベートギャラリー',
+  title: 'Peacephoto',
+  description: 'Peacephoto — 思い出をきれいに残す、あなたのプライベートギャラリー',
 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
@@ -25,7 +25,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             display: 'flex', alignItems: 'center', justifyContent: 'space-between',
           }}>
             <Link href="/" style={{ textDecoration: 'none', color: 'var(--ink)' }}>
-              <span style={{ fontWeight: 700, fontSize: 17, letterSpacing: '0.1em' }}>上田写真館</span>
+              <span style={{ fontWeight: 700, fontSize: 17, letterSpacing: '0.1em' }}>Peacephoto</span>
             </Link>
             <nav style={{ display: 'flex', gap: 24, fontSize: 13, alignItems: 'center' }}>
               <Link href="/albums" style={{ color: 'var(--sub)', textDecoration: 'none' }}>アルバム一覧</Link>
@@ -40,7 +40,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             fontSize: 12, color: 'var(--sub)',
             borderTop: '1px solid var(--line)', marginTop: 64,
           }}>
-            © 上田写真館. All rights reserved. — 無断転載・複製を禁じます。
+            © Peacephoto. All rights reserved. — 無断転載・複製を禁じます。
             <br />
             <Link href="/admin" style={{ color: 'var(--line)', textDecoration: 'none', fontSize: 11, marginTop: 8, display: 'inline-block' }}>管理者</Link>
           </footer>

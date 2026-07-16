@@ -19,14 +19,14 @@ export default async function HomePage() {
         background: 'linear-gradient(160deg, #f8f6f2 0%, #ede8df 100%)',
       }}>
         <p style={{ fontSize: 11, letterSpacing: '0.25em', color: 'var(--accent)', marginBottom: 18, textTransform: 'uppercase' }}>
-          Ueda Photo Studio
+          Peacephoto
         </p>
         <h1 style={{
           fontSize: 'clamp(38px, 9vw, 68px)',
           fontWeight: 700, letterSpacing: '0.14em',
           lineHeight: 1.15, margin: '0 0 22px',
         }}>
-          上田写真館
+          Peacephoto
         </h1>
         <p style={{ fontSize: 14, color: 'var(--sub)', maxWidth: 360, lineHeight: 2, marginBottom: 44 }}>
           大切な瞬間を、丁寧に。<br />
