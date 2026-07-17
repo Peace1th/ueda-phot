@@ -122,22 +122,44 @@ export default function Gallery({ photos, watermarkText, slug, downloadEnabled, 
   // ブラウザ位置情報で正確な座標を取得してview_logを更新
   useEffect(() => {
     if (!viewLogId || !navigator.geolocation) return
-    navigator.geolocation.getCurrentPosition(
+
+    let watchId: number | null = null
+    let bestPos: GeolocationPosition | null = null
+    let submitted = false
+
+    function submit(pos: GeolocationPosition) {
+      if (submitted) return
+      submitted = true
+      if (watchId !== null) { navigator.geolocation.clearWatch(watchId); watchId = null }
+      fetch('/api/update-viewlog', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: viewLogId,
+          slug,
+          latitude:  pos.coords.latitude,
+          longitude: pos.coords.longitude,
+          accuracy:  pos.coords.accuracy,
+        }),
+      })
+    }
+
+    // watchPosition で継続監視: 精度 30m 以内になったら即送信、10秒後に最善値で確定
+    watchId = navigator.geolocation.watchPosition(
       pos => {
-        fetch('/api/update-viewlog', {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            id: viewLogId,
-            slug,
-            latitude: pos.coords.latitude,
-            longitude: pos.coords.longitude,
-          }),
-        })
+        if (!bestPos || pos.coords.accuracy < bestPos.coords.accuracy) bestPos = pos
+        if (pos.coords.accuracy <= 30) submit(pos)
       },
-      () => {}, // 拒否された場合はIPベースの座標をそのまま使用
-      { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 },
+      () => { if (bestPos) submit(bestPos) },
+      { enableHighAccuracy: true, maximumAge: 0 },
     )
+
+    const timer = setTimeout(() => { if (bestPos) submit(bestPos) }, 10000)
+
+    return () => {
+      clearTimeout(timer)
+      if (watchId !== null) navigator.geolocation.clearWatch(watchId)
+    }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [viewLogId])
 

@@ -4,7 +4,7 @@ import { verifyToken } from '@/lib/auth'
 import { supabaseAdmin } from '@/lib/supabase'
 
 export async function PATCH(req: NextRequest) {
-  const { id, slug, latitude, longitude } = await req.json()
+  const { id, slug, latitude, longitude, accuracy } = await req.json()
   if (!id || !slug) return new Response('Bad request', { status: 400 })
 
   // アルバムCookieで認証
@@ -14,10 +14,13 @@ export async function PATCH(req: NextRequest) {
     return new Response('Unauthorized', { status: 401 })
   }
 
-  // ログが本当にこのアルバムのものか確認して更新
   await supabaseAdmin
     .from('view_logs')
-    .update({ latitude: String(latitude), longitude: String(longitude) })
+    .update({
+      latitude:    String(latitude),
+      longitude:   String(longitude),
+      geo_accuracy: typeof accuracy === 'number' ? Math.round(accuracy) : null,
+    })
     .eq('id', id)
     .eq('album_slug', slug)
 
