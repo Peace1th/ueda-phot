@@ -24,7 +24,7 @@ function makeWatermarkBg(text: string): string {
   return `url("data:image/svg+xml;charset=utf8,${encodeURIComponent(svg)}")`
 }
 
-const MAX_SELECT = 10
+const MAX_SELECT = 20
 
 export default function Gallery({ photos, watermarkText, slug, downloadEnabled }: Props) {
   const [current, setCurrent]     = useState<number | null>(null)
@@ -147,10 +147,34 @@ export default function Gallery({ photos, watermarkText, slug, downloadEnabled }
     <div className="protect">
       {/* 認証バー */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16, flexWrap: 'wrap', gap: 8 }}>
-        <p style={{ fontSize: 13, color: 'var(--sub)', margin: 0 }}>
-          全 {photos.length} 枚 — ホバーでプレビュー、クリックで拡大
-          {downloadEnabled && <span style={{ marginLeft: 8 }}>· チェックで複数選択DL（最大{MAX_SELECT}枚）</span>}
-        </p>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+          <p style={{ fontSize: 13, color: 'var(--sub)', margin: 0 }}>
+            全 {photos.length} 枚 — ホバーでプレビュー、クリックで拡大
+            {downloadEnabled && <span style={{ marginLeft: 8 }}>· チェックで複数選択DL（最大{MAX_SELECT}枚）</span>}
+          </p>
+          {downloadEnabled && photos.some(p => p.mediaType !== 'video') && (
+            <button
+              onClick={() => {
+                const imageIndices = photos.reduce<number[]>((acc, p, i) => {
+                  if (p.mediaType !== 'video') acc.push(i)
+                  return acc
+                }, [])
+                setSelected(prev =>
+                  prev.size > 0
+                    ? new Set()
+                    : new Set(imageIndices.slice(0, MAX_SELECT))
+                )
+              }}
+              style={{
+                padding: '3px 10px', fontSize: 12, color: 'var(--sub)',
+                background: 'none', border: '1px solid var(--line)',
+                borderRadius: 4, cursor: 'pointer', whiteSpace: 'nowrap',
+              }}
+            >
+              {selected.size > 0 ? '選択解除' : '全選択'}
+            </button>
+          )}
+        </div>
         {!authLoading && (
           user ? (
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 13 }}>

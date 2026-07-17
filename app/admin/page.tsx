@@ -21,6 +21,15 @@ type ViewLog = {
   viewer_name: string | null; viewer_email: string | null
 }
 type DriveFile = { id: string; name: string }
+type AlbumStats = {
+  slug: string; name: string
+  view_count: number; unique_visitors: number; download_count: number
+  last_viewed: string | null
+}
+type AccessUser = {
+  id: string; user_id: string
+  name: string | null; email: string | null; created_at: string
+}
 
 type FormState = {
   name: string; slug: string; description: string; password: string
@@ -108,6 +117,18 @@ export default function AdminPage() {
   const [captionMap, setCaptionMap]           = useState<Record<string, string>>({})
   const [captionLoading, setCaptionLoading]   = useState(false)
   const [captionMsg, setCaptionMsg]           = useState('')
+
+  // 統計
+  const [stats, setStats]           = useState<AlbumStats[]>([])
+  const [statsLoading, setStatsLoading] = useState(false)
+  const [statsLoaded, setStatsLoaded]   = useState(false)
+
+  // アクセス管理
+  const [accessAlbumSlug, setAccessAlbumSlug] = useState<string | null>(null)
+  const [accessList, setAccessList]           = useState<AccessUser[]>([])
+  const [accessLoading, setAccessLoading]     = useState(false)
+  const [accessEmail, setAccessEmail]         = useState('')
+  const [accessMsg, setAccessMsg]             = useState('')
 
   /* ── ローダー群 ── */
   async function load(pw: string) {
@@ -248,6 +269,50 @@ export default function AdminPage() {
     setTimeout(() => setCaptionMsg(''), 3000)
   }
 
+  /* ── 統計 ── */
+  async function loadStats() {
+    setStatsLoading(true)
+    const res = await fetch('/api/admin/stats', { headers: { 'x-admin-password': adminPw } })
+    setStats(await res.json()); setStatsLoaded(true); setStatsLoading(false)
+  }
+
+  /* ── アクセス管理 ── */
+  async function reloadAccess(slug: string) {
+    setAccessLoading(true)
+    const res = await fetch(`/api/admin/access?slug=${encodeURIComponent(slug)}`, {
+      headers: { 'x-admin-password': adminPw },
+    })
+    setAccessList(await res.json()); setAccessLoading(false)
+  }
+  async function toggleAccess(slug: string) {
+    if (accessAlbumSlug === slug) { setAccessAlbumSlug(null); return }
+    setAccessAlbumSlug(slug); setAccessMsg(''); setAccessEmail('')
+    await reloadAccess(slug)
+  }
+  async function addAccess() {
+    if (!accessAlbumSlug || !accessEmail.trim()) return
+    setAccessMsg('')
+    const res = await fetch('/api/admin/access', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-admin-password': adminPw },
+      body: JSON.stringify({ email: accessEmail.trim(), slug: accessAlbumSlug }),
+    })
+    const data = await res.json()
+    if (data.error) { setAccessMsg('エラー: ' + data.error); return }
+    setAccessEmail('')
+    setAccessMsg(data.message === 'already_exists' ? 'すでに登録済みです' : '追加しました')
+    setTimeout(() => setAccessMsg(''), 3000)
+    await reloadAccess(accessAlbumSlug)
+  }
+  async function removeAccess(id: string) {
+    await fetch('/api/admin/access', {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json', 'x-admin-password': adminPw },
+      body: JSON.stringify({ id }),
+    })
+    if (accessAlbumSlug) await reloadAccess(accessAlbumSlug)
+  }
+
   /* ── QRダウンロード ── */
   async function downloadQR(slug: string) {
     const albumUrl = `${window.location.origin}/albums/${slug}`
@@ -378,6 +443,11 @@ export default function AdminPage() {
                   borderRadius: 4, background: captionAlbumId === a.id ? '#e8e4de' : '#fff',
                   cursor: 'pointer', whiteSpace: 'nowrap',
                 }}>キャプション</button>
+                <button onClick={() => toggleAccess(a.slug)} style={{
+                  padding: '6px 14px', fontSize: 12, border: '1px solid var(--line)',
+                  borderRadius: 4, background: accessAlbumSlug === a.slug ? '#e8edf4' : '#fff',
+                  cursor: 'pointer', whiteSpace: 'nowrap',
+                }}>アクセス管理</button>
                 <button onClick={() => toggleActive(a)} style={{
                   padding: '6px 14px', fontSize: 12, border: '1px solid var(--line)',
                   borderRadius: 4, background: '#fff', cursor: 'pointer', whiteSpace: 'nowrap',
@@ -455,6 +525,66 @@ export default function AdminPage() {
                     }}>キャンセル</button>
                     {editMsg && <span style={{ fontSize: 13, color: editMsg.includes('エラー') ? '#d23b3b' : '#2a7a2a' }}>{editMsg}</span>}
                   </div>
+                </div>
+              )}
+
+              {/* アクセス管理 */}
+              {accessAlbumSlug === a.slug && (
+                <div style={{ background: '#f0f4f8', borderTop: '1px solid var(--line)', padding: '20px' }}>
+                  <p style={{ fontSize: 13, fontWeight: 700, marginBottom: 14 }}>アクセス権限管理</p>
+                  {/* ユーザー追加 */}
+                  <div style={{ display: 'flex', gap: 8, marginBottom: 16, alignItems: 'center', flexWrap: 'wrap' }}>
+                    <input
+                      type="email"
+                      placeholder="追加するユーザーのメールアドレス"
+                      value={accessEmail}
+                      onChange={e => setAccessEmail(e.target.value)}
+                      onKeyDown={e => e.key === 'Enter' && addAccess()}
+                      style={{ ...INPUT, flex: 1, minWidth: 200 }}
+                    />
+                    <button onClick={addAccess} style={{
+                      padding: '9px 18px', fontSize: 13, fontWeight: 700,
+                      background: 'var(--accent)', color: '#fff',
+                      border: 'none', borderRadius: 6, cursor: 'pointer', whiteSpace: 'nowrap',
+                    }}>追加</button>
+                    {accessMsg && (
+                      <span style={{
+                        fontSize: 13,
+                        color: accessMsg.includes('エラー') ? '#d23b3b' : '#2a7a2a',
+                      }}>{accessMsg}</span>
+                    )}
+                  </div>
+                  {/* ユーザー一覧 */}
+                  {accessLoading ? (
+                    <p style={{ fontSize: 13, color: 'var(--sub)' }}>読み込み中…</p>
+                  ) : accessList.length === 0 ? (
+                    <p style={{ fontSize: 13, color: 'var(--sub)' }}>アクセス権限を持つユーザーはいません。</p>
+                  ) : (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                      {accessList.map(u => (
+                        <div key={u.id} style={{
+                          display: 'flex', alignItems: 'center', gap: 12,
+                          padding: '8px 12px', background: '#fff',
+                          borderRadius: 6, border: '1px solid var(--line)',
+                        }}>
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <div style={{ fontSize: 13, fontWeight: 600 }}>{u.name ?? '(名前未登録)'}</div>
+                            <div style={{ fontSize: 12, color: 'var(--sub)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                              {u.email ?? '—'}
+                            </div>
+                          </div>
+                          <div style={{ fontSize: 11, color: 'var(--sub)', whiteSpace: 'nowrap' }}>
+                            {new Date(u.created_at).toLocaleDateString('ja-JP')}
+                          </div>
+                          <button onClick={() => removeAccess(u.id)} style={{
+                            padding: '4px 10px', fontSize: 12,
+                            border: '1px solid #f0c0c0', borderRadius: 4,
+                            background: '#fff9f9', color: '#a03030', cursor: 'pointer', whiteSpace: 'nowrap',
+                          }}>削除</button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -584,6 +714,70 @@ export default function AdminPage() {
                 ))}</tbody>
               </table>
             </div>
+        )}
+      </section>
+
+      {/* ── 統計ダッシュボード ── */}
+      <section style={{ marginBottom: 48, marginTop: 48 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 16 }}>
+          <h2 style={{ fontSize: 16, fontWeight: 700, margin: 0 }}>アルバム統計</h2>
+          <button onClick={loadStats} disabled={statsLoading} style={{
+            padding: '6px 16px', fontSize: 12, cursor: statsLoading ? 'default' : 'pointer',
+            background: '#fff', border: '1px solid var(--line)', borderRadius: 4,
+          }}>{statsLoading ? '集計中…' : statsLoaded ? '更新' : '統計を表示'}</button>
+        </div>
+        {statsLoaded && (
+          stats.length === 0 ? (
+            <p style={{ fontSize: 13, color: 'var(--sub)' }}>アルバムがありません。</p>
+          ) : (
+            <div style={{ overflowX: 'auto' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+                <thead>
+                  <tr style={{ borderBottom: '2px solid var(--line)', textAlign: 'left' }}>
+                    {['アルバム','閲覧数','ユニーク訪問者','DL数','最終閲覧'].map(h => (
+                      <th key={h} style={{ padding: '8px 12px', fontWeight: 700, whiteSpace: 'nowrap', color: 'var(--sub)' }}>{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {[...stats].sort((a, b) => b.view_count - a.view_count).map(s => (
+                    <tr key={s.slug} style={{ borderBottom: '1px solid var(--line)' }}>
+                      <td style={{ padding: '8px 12px' }}>
+                        <div style={{ fontWeight: 600 }}>{s.name}</div>
+                        <div style={{ fontSize: 11, color: 'var(--sub)' }}>/{s.slug}</div>
+                      </td>
+                      <td style={{ padding: '8px 12px', textAlign: 'center' }}>
+                        <span style={{
+                          display: 'inline-block', minWidth: 36,
+                          padding: '2px 10px', borderRadius: 20,
+                          background: s.view_count > 0 ? '#e8f0e8' : '#f5f5f5',
+                          color: s.view_count > 0 ? '#2a6a2a' : 'var(--sub)',
+                          fontWeight: 700, fontSize: 13,
+                        }}>{s.view_count}</span>
+                      </td>
+                      <td style={{ padding: '8px 12px', textAlign: 'center', color: 'var(--sub)' }}>
+                        {s.unique_visitors > 0 ? s.unique_visitors : '—'}
+                      </td>
+                      <td style={{ padding: '8px 12px', textAlign: 'center' }}>
+                        <span style={{
+                          display: 'inline-block', minWidth: 36,
+                          padding: '2px 10px', borderRadius: 20,
+                          background: s.download_count > 0 ? '#e8edf8' : '#f5f5f5',
+                          color: s.download_count > 0 ? '#2a4a8a' : 'var(--sub)',
+                          fontWeight: 700, fontSize: 13,
+                        }}>{s.download_count}</span>
+                      </td>
+                      <td style={{ padding: '8px 12px', whiteSpace: 'nowrap', color: 'var(--sub)', fontSize: 12 }}>
+                        {s.last_viewed
+                          ? new Date(s.last_viewed).toLocaleString('ja-JP', { timeZone: 'Asia/Tokyo' })
+                          : '—'}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )
         )}
       </section>
 

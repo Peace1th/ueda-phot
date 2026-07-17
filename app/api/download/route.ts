@@ -12,8 +12,8 @@ export async function POST(req: NextRequest) {
   if (!fileIds?.length || !slug || !name?.trim() || !email?.trim()) {
     return new Response('Bad request', { status: 400 })
   }
-  if (fileIds.length > 10) {
-    return new Response('Max 10 files per request', { status: 400 })
+  if (fileIds.length > 20) {
+    return new Response('Max 20 files per request', { status: 400 })
   }
 
   const cookieStore = await cookies()
