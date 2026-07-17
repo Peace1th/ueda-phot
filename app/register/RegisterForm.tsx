@@ -14,6 +14,7 @@ const TERMS = `・ダウンロードした写真・動画の著作権はPeacepho
 ・個人利用（思い出の保存・SNS 投稿等）に限り使用できます
 ・商用利用・再販・第三者への配布は禁止します
 ・写真に付与されたクレジットを削除しないでください
+・登録した電話番号は、サービスに関する重要なご連絡のために使用する場合があります
 ・登録した個人情報はサービス提供のためのみ使用します
 ・規約に違反した場合、アカウントを停止する場合があります`
 
@@ -28,7 +29,8 @@ export default function RegisterForm({ userId, email }: { userId: string; email:
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
-    if (!name.trim()) { setError('お名前を入力してください'); return }
+    if (!name.trim())  { setError('お名前を入力してください'); return }
+    if (!phone.trim()) { setError('電話番号を入力してください'); return }
     if (!agreed)      { setError('利用規約に同意してください'); return }
     setSaving(true)
     setError('')
@@ -65,7 +67,9 @@ export default function RegisterForm({ userId, email }: { userId: string; email:
 
       {/* 電話番号 */}
       <label style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
-        <span style={{ fontSize: 12, color: 'var(--sub)' }}>電話番号（任意）</span>
+        <span style={{ fontSize: 12, color: 'var(--sub)' }}>
+          電話番号 <span style={{ color: 'var(--accent)' }}>*</span>
+        </span>
         <input
           value={phone} onChange={e => setPhone(e.target.value)}
           placeholder="090-0000-0000" type="tel" style={INPUT}
