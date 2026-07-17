@@ -28,8 +28,8 @@ export default async function RegisterPage() {
           はじめまして
         </h1>
         <p style={{ fontSize: 13, color: 'var(--sub)', marginBottom: 32, lineHeight: 1.9 }}>
-          お名前と電話番号を登録してください。<br />
-          写真のダウンロード時に使用します。
+          サービスのご利用にあたり、お名前・電話番号の登録と<br />
+          利用規約へのご同意をお願いします。
         </p>
         <RegisterForm userId={user.id} email={user.email ?? ''} />
       </div>

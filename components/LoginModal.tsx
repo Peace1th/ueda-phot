@@ -18,7 +18,6 @@ export default function LoginModal({ onClose }: Props) {
   const [mode, setMode]         = useState<Mode>('login')
   const [email, setEmail]       = useState('')
   const [password, setPassword] = useState('')
-  const [name, setName]         = useState('')
   const [loading, setLoading]   = useState(false)
   const [err, setErr]           = useState('')
   const [info, setInfo]         = useState('')
@@ -35,13 +34,23 @@ export default function LoginModal({ onClose }: Props) {
   }
 
   async function handleSubmit() {
-    if (!email.trim() || !password.trim()) { setErr('メールアドレスとパスワードを入力してください'); return }
-    if (mode === 'signup' && !name.trim()) { setErr('お名前を入力してください'); return }
+    if (!email.trim() || !password.trim()) {
+      setErr('メールアドレスとパスワードを入力してください')
+      return
+    }
     setLoading(true); setErr(''); setInfo('')
 
     if (mode === 'login') {
       const { error } = await supabase.auth.signInWithPassword({ email, password })
       if (error) { setErr('メールアドレスまたはパスワードが違います'); setLoading(false); return }
+
+      // 名前未登録なら登録画面へ
+      const { data: { user } } = await supabase.auth.getUser()
+      if (user) {
+        const { data: profile } = await supabase
+          .from('user_profiles').select('name').eq('id', user.id).maybeSingle()
+        if (!profile?.name) { window.location.href = '/register'; return }
+      }
       await refreshProfile()
       onClose()
     } else {
@@ -53,16 +62,11 @@ export default function LoginModal({ onClose }: Props) {
         setLoading(false)
         return
       }
-      if (data.user && name.trim()) {
-        await supabase.from('user_profiles').upsert({
-          id: data.user.id, name: name.trim(), updated_at: new Date().toISOString(),
-        })
-      }
       if (data.session) {
-        await refreshProfile()
-        onClose()
+        // メール確認不要の場合はそのまま情報登録へ
+        window.location.href = '/register'
       } else {
-        setInfo('確認メールを送信しました。メールのリンクをクリックしてからログインしてください。')
+        setInfo('確認メールを送信しました。メールのリンクをクリックして登録を完了してください。')
         setLoading(false)
       }
     }
@@ -98,16 +102,17 @@ export default function LoginModal({ onClose }: Props) {
         </div>
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-          {mode === 'signup' && (
-            <input type="text" placeholder="お名前" value={name}
-              onChange={e => setName(e.target.value)} style={INPUT_STYLE} />
-          )}
           <input type="email" placeholder="メールアドレス" value={email}
             onChange={e => setEmail(e.target.value)} style={INPUT_STYLE} />
           <input type="password" placeholder="パスワード" value={password}
             onChange={e => setPassword(e.target.value)}
             onKeyDown={e => { if (e.key === 'Enter') handleSubmit() }}
             style={INPUT_STYLE} />
+          {mode === 'signup' && (
+            <p style={{ fontSize: 12, color: 'var(--sub)', margin: 0, lineHeight: 1.8 }}>
+              アカウント作成後、お名前・電話番号・利用規約の同意をお願いします。
+            </p>
+          )}
           <button onClick={handleSubmit} disabled={loading} style={{
             padding: '10px', fontSize: 14, fontWeight: 600,
             background: loading ? 'var(--accent-light)' : 'var(--accent)', color: '#fff',
@@ -136,7 +141,7 @@ export default function LoginModal({ onClose }: Props) {
             <path fill="#FBBC05" d="M4.5 10.52a4.8 4.8 0 0 1 0-3.04V5.41H1.83a8 8 0 0 0 0 7.18l2.67-2.07z"/>
             <path fill="#EA4335" d="M8.98 4.18c1.17 0 2.23.4 3.06 1.2l2.3-2.3A8 8 0 0 0 1.83 5.4L4.5 7.49a4.77 4.77 0 0 1 4.48-3.3z"/>
           </svg>
-          Googleでログイン
+          Googleでログイン / 新規登録
         </button>
 
         {err  && <p style={{ color: '#d23b3b', fontSize: 13, marginTop: 12 }}>{err}</p>}
