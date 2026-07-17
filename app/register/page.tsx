@@ -2,6 +2,7 @@ import { redirect } from 'next/navigation'
 import { createSupabaseServerClient } from '@/lib/supabase-server'
 import { supabaseAdmin } from '@/lib/supabase'
 import RegisterForm from './RegisterForm'
+import { DEFAULT_TERMS_REGISTER } from '@/lib/terms-defaults'
 
 export const dynamic = 'force-dynamic'
 
@@ -18,6 +19,13 @@ export default async function RegisterPage() {
 
   if (profile?.name) redirect('/')
 
+  const { data: termsSetting } = await supabaseAdmin
+    .from('site_settings')
+    .select('value')
+    .eq('key', 'terms_register')
+    .maybeSingle()
+  const terms = termsSetting?.value ?? DEFAULT_TERMS_REGISTER
+
   return (
     <main style={{
       minHeight: '70vh', display: 'flex',
@@ -31,7 +39,7 @@ export default async function RegisterPage() {
           サービスのご利用にあたり、お名前・電話番号の登録と<br />
           利用規約へのご同意をお願いします。
         </p>
-        <RegisterForm userId={user.id} email={user.email ?? ''} />
+        <RegisterForm userId={user.id} email={user.email ?? ''} terms={terms} />
       </div>
     </main>
   )

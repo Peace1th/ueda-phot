@@ -3,28 +3,13 @@
 import { useState, useEffect } from 'react'
 import { useAuth } from './AuthProvider'
 import { createSupabaseBrowserClient } from '@/lib/supabase-browser'
+import { DEFAULT_TERMS_DOWNLOAD } from '@/lib/terms-defaults'
 
 type Props = {
   fileIds: string[]
   slug: string
   onClose: () => void
 }
-
-const TERMS = `本写真・動画の著作権はPeacephotoに帰属します。登録時にご同意いただいた利用規約を再確認ください。
-
-【利用できること】
-・個人的な保存・閲覧・SNSへの掲載
-・名刺・パンフレット・ウェブサイト等、自己のブランド・商業目的での使用
-・自己の商標・ロゴに関連する用途での使用
-
-【禁止事項】
-・第三者への販売・譲渡・再配布
-・加工・編集物の第三者への配布・販売
-・AI・機械学習の訓練データとしての使用
-・署名・透かしの除去・改変
-・全国規模の商業広告等への使用は事前にご連絡ください
-
-規約に違反した場合は著作権法に基づき対応します。`
 
 const INPUT_STYLE: React.CSSProperties = {
   padding: '9px 12px', fontSize: 14,
@@ -42,6 +27,14 @@ export default function DownloadModal({ fileIds, slug, onClose }: Props) {
   const [agreed, setAgreed]   = useState(false)
   const [loading, setLoading] = useState(false)
   const [err, setErr]         = useState('')
+  const [terms, setTerms]     = useState(DEFAULT_TERMS_DOWNLOAD)
+
+  useEffect(() => {
+    fetch('/api/terms')
+      .then(r => r.json())
+      .then(data => { if (data.terms_download) setTerms(data.terms_download) })
+      .catch(() => {})
+  }, [])
 
   useEffect(() => {
     if (user) {
@@ -149,8 +142,9 @@ export default function DownloadModal({ fileIds, slug, onClose }: Props) {
           background: '#f8f6f2', borderRadius: 8, padding: 16,
           fontSize: 12, color: 'var(--sub)', lineHeight: 1.9,
           marginBottom: 16, whiteSpace: 'pre-wrap',
+          maxHeight: 200, overflowY: 'auto',
         }}>
-          {TERMS}
+          {terms}
         </div>
 
         <label style={{ display: 'flex', alignItems: 'flex-start', gap: 10, cursor: 'pointer', marginBottom: 20 }}>

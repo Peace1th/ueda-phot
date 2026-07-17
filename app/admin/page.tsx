@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { DEFAULT_TERMS_REGISTER, DEFAULT_TERMS_DOWNLOAD } from '@/lib/terms-defaults'
 
 type Album = {
   id: string; slug: string; name: string; description: string
@@ -109,6 +110,11 @@ export default function AdminPage() {
   const [homeIntro, setHomeIntro] = useState('')
   const [introMsg, setIntroMsg]   = useState('')
 
+  // 利用規約
+  const [termsRegister, setTermsRegister] = useState(DEFAULT_TERMS_REGISTER)
+  const [termsDownload, setTermsDownload] = useState(DEFAULT_TERMS_DOWNLOAD)
+  const [termsMsg, setTermsMsg]           = useState('')
+
   // QRコード
   const [qrSlug, setQrSlug] = useState<string | null>(null)
 
@@ -142,6 +148,18 @@ export default function AdminPage() {
     const res = await fetch('/api/admin/settings', { headers: { 'x-admin-password': pw } })
     const data = await res.json()
     setHomeIntro(data.home_intro ?? '')
+    setTermsRegister(data.terms_register ?? DEFAULT_TERMS_REGISTER)
+    setTermsDownload(data.terms_download ?? DEFAULT_TERMS_DOWNLOAD)
+  }
+  async function saveTerms(key: string, value: string) {
+    setTermsMsg('')
+    await fetch('/api/admin/settings', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', 'x-admin-password': adminPw },
+      body: JSON.stringify({ key, value }),
+    })
+    setTermsMsg('保存しました')
+    setTimeout(() => setTermsMsg(''), 3000)
   }
   async function login() {
     const ok = await load(adminPw)
@@ -362,6 +380,47 @@ export default function AdminPage() {
             border: 'none', borderRadius: 6, fontSize: 13, fontWeight: 700, cursor: 'pointer',
           }}>保存</button>
           {introMsg && <span style={{ fontSize: 13, color: '#2a7a2a' }}>{introMsg}</span>}
+        </div>
+      </section>
+
+      {/* ── 利用規約管理 ── */}
+      <section style={{ marginBottom: 48, padding: 24, background: '#f8f6f2', borderRadius: 8 }}>
+        <h2 style={{ fontSize: 15, fontWeight: 700, marginBottom: 20 }}>利用規約</h2>
+
+        <div style={{ marginBottom: 28 }}>
+          <p style={{ fontSize: 12, color: 'var(--sub)', fontWeight: 600, marginBottom: 8 }}>
+            登録時（全文）
+          </p>
+          <textarea
+            value={termsRegister}
+            onChange={e => setTermsRegister(e.target.value)}
+            rows={22}
+            style={{ ...INPUT, resize: 'vertical', lineHeight: 1.8, fontFamily: 'monospace', fontSize: 12 }}
+          />
+        </div>
+
+        <div style={{ marginBottom: 16 }}>
+          <p style={{ fontSize: 12, color: 'var(--sub)', fontWeight: 600, marginBottom: 8 }}>
+            ダウンロード時（確認版）
+          </p>
+          <textarea
+            value={termsDownload}
+            onChange={e => setTermsDownload(e.target.value)}
+            rows={14}
+            style={{ ...INPUT, resize: 'vertical', lineHeight: 1.8, fontFamily: 'monospace', fontSize: 12 }}
+          />
+        </div>
+
+        <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+          <button onClick={() => saveTerms('terms_register', termsRegister)} style={{
+            padding: '8px 22px', background: 'var(--accent)', color: '#fff',
+            border: 'none', borderRadius: 6, fontSize: 13, fontWeight: 700, cursor: 'pointer',
+          }}>登録時を保存</button>
+          <button onClick={() => saveTerms('terms_download', termsDownload)} style={{
+            padding: '8px 22px', background: 'var(--accent)', color: '#fff',
+            border: 'none', borderRadius: 6, fontSize: 13, fontWeight: 700, cursor: 'pointer',
+          }}>DL時を保存</button>
+          {termsMsg && <span style={{ fontSize: 13, color: '#2a7a2a' }}>{termsMsg}</span>}
         </div>
       </section>
 
