@@ -12,6 +12,7 @@ type Props = {
   watermarkText: string
   slug: string
   downloadEnabled: boolean
+  viewLogId?: string | null
 }
 
 function makeWatermarkBg(text: string): string {
@@ -26,7 +27,7 @@ function makeWatermarkBg(text: string): string {
 
 const MAX_SELECT = 20
 
-export default function Gallery({ photos, watermarkText, slug, downloadEnabled }: Props) {
+export default function Gallery({ photos, watermarkText, slug, downloadEnabled, viewLogId }: Props) {
   const [current, setCurrent]     = useState<number | null>(null)
   const [lbSrc, setLbSrc]         = useState<string | null>(null)
   const [lbLoading, setLbLoading] = useState(false)
@@ -117,6 +118,28 @@ export default function Gallery({ photos, watermarkText, slug, downloadEnabled }
     if (next < 0 || next >= photos.length) return
     openLightbox(next)
   }
+
+  // ブラウザ位置情報で正確な座標を取得してview_logを更新
+  useEffect(() => {
+    if (!viewLogId || !navigator.geolocation) return
+    navigator.geolocation.getCurrentPosition(
+      pos => {
+        fetch('/api/update-viewlog', {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            id: viewLogId,
+            slug,
+            latitude: pos.coords.latitude,
+            longitude: pos.coords.longitude,
+          }),
+        })
+      },
+      () => {}, // 拒否された場合はIPベースの座標をそのまま使用
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 },
+    )
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [viewLogId])
 
   useEffect(() => {
     function onKey(e: KeyboardEvent) {

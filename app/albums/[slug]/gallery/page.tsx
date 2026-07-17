@@ -83,11 +83,12 @@ export default async function GalleryPage({ params }: Props) {
     viewerName = prof?.name ?? null
   }
 
-  await supabaseAdmin.from('view_logs').insert({
+  const { data: logData } = await supabaseAdmin.from('view_logs').insert({
     album_slug: slug, ip_address: ip, user_agent: ua,
     city, country, region, latitude, longitude, timezone,
     viewer_user_id: viewerUserId, viewer_name: viewerName, viewer_email: viewerEmail,
-  })
+  }).select('id').single()
+  const viewLogId = logData?.id ?? null
 
   // Google Drive からフォルダ内のメディア一覧を取得（写真・動画）
   let photos: { id: string; url: string; thumbUrl: string; caption?: string; mediaType: 'image' | 'video' }[] = []
@@ -133,6 +134,7 @@ export default async function GalleryPage({ params }: Props) {
         watermarkText={album.watermark_text ?? 'Peacephoto'}
         slug={slug}
         downloadEnabled={album.download_enabled ?? true}
+        viewLogId={viewLogId}
       />
     </main>
   )
