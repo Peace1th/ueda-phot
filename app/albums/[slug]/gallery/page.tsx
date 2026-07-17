@@ -3,7 +3,7 @@ import { notFound, redirect } from 'next/navigation'
 import { supabaseAdmin } from '@/lib/supabase'
 import { createSupabaseServerClient } from '@/lib/supabase-server'
 import { verifyToken } from '@/lib/auth'
-import { listDrivePhotos } from '@/lib/drive'
+import { listDriveMedia } from '@/lib/drive'
 import Gallery from '@/components/Gallery'
 
 export const dynamic = 'force-dynamic'
@@ -89,12 +89,12 @@ export default async function GalleryPage({ params }: Props) {
     viewer_user_id: viewerUserId, viewer_name: viewerName, viewer_email: viewerEmail,
   })
 
-  // Google Drive からフォルダ内の写真一覧を取得
-  let photos: { id: string; url: string; thumbUrl: string; caption?: string }[] = []
+  // Google Drive からフォルダ内のメディア一覧を取得（写真・動画）
+  let photos: { id: string; url: string; thumbUrl: string; caption?: string; mediaType: 'image' | 'video' }[] = []
   try {
-    const files = await listDrivePhotos(album.drive_folder_id)
+    const files = await listDriveMedia(album.drive_folder_id)
 
-    // キャプション取得
+    // キャプション取得（画像のみ対象）
     const fileIds = files.map(f => f.id)
     const { data: captionRows } = fileIds.length
       ? await supabaseAdmin.from('photo_captions').select('file_id, caption').in('file_id', fileIds)
@@ -102,12 +102,20 @@ export default async function GalleryPage({ params }: Props) {
     const captionMap: Record<string, string> = {}
     ;(captionRows ?? []).forEach(r => { captionMap[r.file_id] = r.caption })
 
-    photos = files.map(f => ({
-      id: f.id,
-      thumbUrl: `/api/photo?fileId=${f.id}&slug=${slug}&size=thumb`,
-      url:      `/api/photo?fileId=${f.id}&slug=${slug}&size=medium`,
-      caption:  captionMap[f.id] || undefined,
-    }))
+    photos = files.map(f => {
+      const isVideo = f.mimeType.startsWith('video/')
+      return {
+        id: f.id,
+        mediaType: isVideo ? 'video' as const : 'image' as const,
+        thumbUrl: isVideo
+          ? `/api/video?fileId=${f.id}&slug=${slug}`
+          : `/api/photo?fileId=${f.id}&slug=${slug}&size=thumb`,
+        url: isVideo
+          ? `/api/video?fileId=${f.id}&slug=${slug}`
+          : `/api/photo?fileId=${f.id}&slug=${slug}&size=medium`,
+        caption: captionMap[f.id] || undefined,
+      }
+    })
   } catch (e) {
     console.error('Drive fetch error:', e)
   }

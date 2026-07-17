@@ -5,7 +5,7 @@ import DownloadModal from './DownloadModal'
 import LoginModal from './LoginModal'
 import { useAuth } from './AuthProvider'
 
-type Photo = { id: string; url: string; thumbUrl: string; caption?: string }
+type Photo = { id: string; url: string; thumbUrl: string; caption?: string; mediaType?: 'image' | 'video' }
 
 type Props = {
   photos: Photo[]
@@ -99,12 +99,17 @@ export default function Gallery({ photos, watermarkText, slug, downloadEnabled }
     resetZoom()
     setHovered(null)
     setCurrent(i)
-    setLbSrc(photos[i].thumbUrl)
-    setLbLoading(true)
-    const img = new Image()
-    img.onload  = () => { setLbSrc(img.src); setLbLoading(false) }
-    img.onerror = () => setLbLoading(false)
-    img.src = photos[i].url
+    if (photos[i].mediaType === 'video') {
+      setLbSrc(photos[i].url)
+      setLbLoading(false)
+    } else {
+      setLbSrc(photos[i].thumbUrl)
+      setLbLoading(true)
+      const img = new Image()
+      img.onload  = () => { setLbSrc(img.src); setLbLoading(false) }
+      img.onerror = () => setLbLoading(false)
+      img.src = photos[i].url
+    }
   }
 
   function move(d: number) {
@@ -172,48 +177,56 @@ export default function Gallery({ photos, watermarkText, slug, downloadEnabled }
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(150px,1fr))', gap: 8 }}>
         {photos.map((p, i) => (
           <div key={p.id}
-            onMouseEnter={e => { setHovered(i); setMousePos({ x: e.clientX, y: e.clientY }) }}
-            onMouseMove={e  => setMousePos({ x: e.clientX, y: e.clientY })}
+            onMouseEnter={e => { if (p.mediaType !== 'video') { setHovered(i); setMousePos({ x: e.clientX, y: e.clientY }) } }}
+            onMouseMove={e  => { if (p.mediaType !== 'video') setMousePos({ x: e.clientX, y: e.clientY }) }}
             onMouseLeave={() => setHovered(null)}
             style={{
               position: 'relative', aspectRatio: '1/1', borderRadius: 6,
-              overflow: 'hidden', background: '#e8e4de',
+              overflow: 'hidden', background: p.mediaType === 'video' ? '#1a1a1a' : '#e8e4de',
               outline: selected.has(i) ? '3px solid var(--accent)' : hovered === i ? '2px solid var(--accent)' : 'none',
               transition: 'outline .1s',
             }}
           >
             <div onClick={() => openLightbox(i)}
               style={{ position: 'absolute', inset: 0, cursor: 'zoom-in', zIndex: 0 }} />
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={p.thumbUrl} loading="lazy" alt=""
-              style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block', opacity: 0, transition: 'opacity .3s' }}
-              onLoad={e => { (e.target as HTMLImageElement).style.opacity = '1' }} />
-            <div className="watermark-overlay" style={{ backgroundImage: wmBg }} />
-            {selected.has(i) && (
-              <div style={{ position: 'absolute', inset: 0, background: 'rgba(157,124,92,0.22)', zIndex: 1, pointerEvents: 'none' }} />
-            )}
-            {downloadEnabled && (
-              <div onClick={e => { e.stopPropagation(); toggleSelect(i) }}
-                title={atMax && !selected.has(i) ? `最大${MAX_SELECT}枚まで` : undefined}
-                style={{
-                  position: 'absolute', top: 6, left: 6, zIndex: 3,
-                  width: 22, height: 22, borderRadius: 4, boxSizing: 'border-box',
-                  background: selected.has(i) ? 'var(--accent)' : 'rgba(0,0,0,0.35)',
-                  border: `2px solid ${selected.has(i) ? 'var(--accent)' : 'rgba(255,255,255,0.9)'}`,
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  cursor: atMax && !selected.has(i) ? 'not-allowed' : 'pointer',
-                  opacity: hovered === i || selected.has(i) || selected.size > 0 ? 1 : 0,
-                  transition: 'opacity .15s, background .15s',
-                }}>
-                {selected.has(i) && <span style={{ color: '#fff', fontSize: 12, fontWeight: 700, lineHeight: 1, userSelect: 'none' }}>✓</span>}
+            {p.mediaType === 'video' ? (
+              <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <span style={{ fontSize: 40, color: 'rgba(255,255,255,0.75)', pointerEvents: 'none', userSelect: 'none' }}>▶</span>
               </div>
+            ) : (
+              <>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={p.thumbUrl} loading="lazy" alt=""
+                  style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block', opacity: 0, transition: 'opacity .3s' }}
+                  onLoad={e => { (e.target as HTMLImageElement).style.opacity = '1' }} />
+                <div className="watermark-overlay" style={{ backgroundImage: wmBg }} />
+                {selected.has(i) && (
+                  <div style={{ position: 'absolute', inset: 0, background: 'rgba(157,124,92,0.22)', zIndex: 1, pointerEvents: 'none' }} />
+                )}
+                {downloadEnabled && (
+                  <div onClick={e => { e.stopPropagation(); toggleSelect(i) }}
+                    title={atMax && !selected.has(i) ? `最大${MAX_SELECT}枚まで` : undefined}
+                    style={{
+                      position: 'absolute', top: 6, left: 6, zIndex: 3,
+                      width: 22, height: 22, borderRadius: 4, boxSizing: 'border-box',
+                      background: selected.has(i) ? 'var(--accent)' : 'rgba(0,0,0,0.35)',
+                      border: `2px solid ${selected.has(i) ? 'var(--accent)' : 'rgba(255,255,255,0.9)'}`,
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      cursor: atMax && !selected.has(i) ? 'not-allowed' : 'pointer',
+                      opacity: hovered === i || selected.has(i) || selected.size > 0 ? 1 : 0,
+                      transition: 'opacity .15s, background .15s',
+                    }}>
+                    {selected.has(i) && <span style={{ color: '#fff', fontSize: 12, fontWeight: 700, lineHeight: 1, userSelect: 'none' }}>✓</span>}
+                  </div>
+                )}
+              </>
             )}
           </div>
         ))}
       </div>
 
-      {/* ホバープレビュー */}
-      {hovered !== null && current === null && (
+      {/* ホバープレビュー（動画は非表示） */}
+      {hovered !== null && current === null && photos[hovered].mediaType !== 'video' && (
         <div style={{
           position: 'fixed', left: px, top: Math.max(margin, py),
           width: previewW, height: previewH, borderRadius: 10, overflow: 'hidden',
@@ -240,37 +253,55 @@ export default function Gallery({ photos, watermarkText, slug, downloadEnabled }
           <div style={{ position: 'relative', maxWidth: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12 }}>
             <button onClick={() => { setCurrent(null); resetZoom() }} style={closeBtn}>×</button>
             {downloadEnabled && (
-              <button onClick={e => { e.stopPropagation(); setDlFileIds([photos[current].id]) }} style={dlBtn}>
-                ↓ ダウンロード
-              </button>
+              photos[current].mediaType === 'video' ? (
+                <a href={photos[current].url} download style={{ ...dlBtn, textDecoration: 'none', display: 'inline-block', textAlign: 'center' }}>
+                  ↓ ダウンロード
+                </a>
+              ) : (
+                <button onClick={e => { e.stopPropagation(); setDlFileIds([photos[current].id]) }} style={dlBtn}>
+                  ↓ ダウンロード
+                </button>
+              )
             )}
             {lbSrc && (
               <>
-                {/* ピンチズーム対応コンテナ */}
-                <div
-                  onTouchStart={onLbTouchStart}
-                  onTouchMove={onLbTouchMove}
-                  onTouchEnd={onLbTouchEnd}
-                  onDoubleClick={resetZoom}
-                  style={{
-                    position: 'relative', display: 'inline-block',
-                    transform: `scale(${lbScale}) translate(${lbOffset.x / lbScale}px, ${lbOffset.y / lbScale}px)`,
-                    transformOrigin: 'center',
-                    touchAction: 'none',
-                    cursor: lbScale > 1 ? 'grab' : 'default',
-                  }}
-                >
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={lbSrc} alt=""
+                {photos[current].mediaType === 'video' ? (
+                  <video
+                    src={lbSrc}
+                    controls
+                    autoPlay
                     style={{
-                      maxWidth: '100%', maxHeight: '82vh', objectFit: 'contain',
+                      maxWidth: '90vw', maxHeight: '82vh',
                       display: 'block', borderRadius: 4,
-                      filter: lbLoading ? 'blur(8px)' : 'none', transition: 'filter .3s',
-                      userSelect: 'none', WebkitUserSelect: 'none',
                     }}
                   />
-                  <div className="watermark-overlay" style={{ backgroundImage: wmBg, borderRadius: 4 }} />
-                </div>
+                ) : (
+                  /* ピンチズーム対応コンテナ */
+                  <div
+                    onTouchStart={onLbTouchStart}
+                    onTouchMove={onLbTouchMove}
+                    onTouchEnd={onLbTouchEnd}
+                    onDoubleClick={resetZoom}
+                    style={{
+                      position: 'relative', display: 'inline-block',
+                      transform: `scale(${lbScale}) translate(${lbOffset.x / lbScale}px, ${lbOffset.y / lbScale}px)`,
+                      transformOrigin: 'center',
+                      touchAction: 'none',
+                      cursor: lbScale > 1 ? 'grab' : 'default',
+                    }}
+                  >
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={lbSrc} alt=""
+                      style={{
+                        maxWidth: '100%', maxHeight: '82vh', objectFit: 'contain',
+                        display: 'block', borderRadius: 4,
+                        filter: lbLoading ? 'blur(8px)' : 'none', transition: 'filter .3s',
+                        userSelect: 'none', WebkitUserSelect: 'none',
+                      }}
+                    />
+                    <div className="watermark-overlay" style={{ backgroundImage: wmBg, borderRadius: 4 }} />
+                  </div>
+                )}
 
                 {/* キャプション */}
                 {photos[current].caption && (
