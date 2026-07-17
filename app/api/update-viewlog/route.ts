@@ -14,15 +14,25 @@ export async function PATCH(req: NextRequest) {
     return new Response('Unauthorized', { status: 401 })
   }
 
-  await supabaseAdmin
+  // geo_accuracy カラムが存在しない場合に備えてフォールバック
+  const { error } = await supabaseAdmin
     .from('view_logs')
     .update({
-      latitude:    String(latitude),
-      longitude:   String(longitude),
+      latitude:     String(latitude),
+      longitude:    String(longitude),
       geo_accuracy: typeof accuracy === 'number' ? Math.round(accuracy) : null,
     })
     .eq('id', id)
     .eq('album_slug', slug)
+
+  if (error) {
+    // カラム未追加の場合: lat/lng だけ更新
+    await supabaseAdmin
+      .from('view_logs')
+      .update({ latitude: String(latitude), longitude: String(longitude) })
+      .eq('id', id)
+      .eq('album_slug', slug)
+  }
 
   return new Response(null, { status: 204 })
 }
